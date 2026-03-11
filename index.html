@@ -82,13 +82,53 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#welcome-to-mkdocs" class="nav-link">Welcome to MkDocs</a>
+            <li class="nav-item" data-bs-level="1"><a href="#corral" class="nav-link">Corral</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#commands" class="nav-link">Commands</a>
+            <li class="nav-item" data-bs-level="2"><a href="#features" class="nav-link">Features</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#project-layout" class="nav-link">Project layout</a>
+            <li class="nav-item" data-bs-level="2"><a href="#installation" class="nav-link">Installation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#quick-start" class="nav-link">Quick Start</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#dashboard-overview" class="nav-link">Dashboard Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#background-services" class="nav-link">Background Services</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#scheduled-jobs" class="nav-link">Scheduled Jobs</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#claude-code-hooks" class="nav-link">Claude Code Hooks</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#agent-protocol" class="nav-link">Agent Protocol</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#remote-server-ssh" class="nav-link">Remote Server (SSH)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#dependencies" class="nav-link">Dependencies</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#contributing" class="nav-link">Contributing</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#license" class="nav-link">License</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -99,21 +139,198 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="welcome-to-mkdocs">Welcome to MkDocs</h1>
-<p>For full documentation visit <a href="https://www.mkdocs.org">mkdocs.org</a>.</p>
-<h2 id="commands">Commands</h2>
+<h1 id="corral">Corral</h1>
+<p><strong>Multi-agent orchestration for AI coding agents.</strong></p>
+<p>Corral brings sanity to coding with AI agents without disrupting your workflow. Activity across all your agents is visible so you can see which ones need attention at a glance.</p>
+<p>Corral is an MIT-licensed multi-agent orchestration application built with tmux, FastAPI, and vanilla HTML5/JS for easy extensibility and modification.</p>
+<hr />
+<h2 id="features">Features</h2>
 <ul>
-<li><code>mkdocs new [dir-name]</code> - Create a new project.</li>
-<li><code>mkdocs serve</code> - Start the live-reloading docs server.</li>
-<li><code>mkdocs build</code> - Build the documentation site.</li>
-<li><code>mkdocs -h</code> - Print help message and exit.</li>
+<li><strong>Multi-agent support</strong> — Launch and manage both Claude and Gemini agents side-by-side across worktrees</li>
+<li><strong>Web dashboard</strong> — Real-time monitoring with terminal capture, status tracking, and command input</li>
+<li><strong>Session history</strong> — Browse past sessions with advanced filters (date range, agent type, tags, full-text search)</li>
+<li><strong>Full-text search</strong> — Search across all session content using SQLite FTS5 with porter stemming</li>
+<li><strong>Auto-summarization</strong> — Sessions are automatically summarized and indexed for search</li>
+<li><strong>Scheduled jobs</strong> — Create cron-scheduled tasks that launch agents in isolated worktrees</li>
+<li><strong>Webhook notifications</strong> — Get notified via webhook when agents need input or complete work</li>
+<li><strong>Session notes &amp; activity</strong> — Add markdown notes and track activity per session</li>
+<li><strong>Remote control</strong> — Send commands, navigate modes, and manage agents from the dashboard</li>
+<li><strong>Git integration &amp; PR linking</strong> — Tracks commits, branches, and remote URLs per agent and session</li>
+<li><strong>Custom macros</strong> — Add configurable toolbar buttons for frequently used commands</li>
 </ul>
-<h2 id="project-layout">Project layout</h2>
-<pre><code>mkdocs.yml    # The configuration file.
-docs/
-    index.md  # The documentation homepage.
-    ...       # Other markdown pages, images and other files.
-</code></pre></div>
+<hr />
+<h2 id="installation">Installation</h2>
+<p>Install from PyPI:</p>
+<pre><code class="language-bash">pip install agent-corral
+</code></pre>
+<p>Or install directly from GitHub:</p>
+<pre><code class="language-bash">pip install git+https://github.com/cdknorow/corral.git
+</code></pre>
+<hr />
+<h2 id="quick-start">Quick Start</h2>
+<p>Start the web dashboard:</p>
+<pre><code class="language-bash"># Default: http://localhost:8420
+corral
+
+# Custom host/port
+corral --host 127.0.0.1 --port 9000
+</code></pre>
+<p>Or use the launcher to discover worktree subdirectories, create an agent for each one, and start the dashboard:</p>
+<pre><code class="language-bash"># Launch Claude agents and web dashboard for worktrees in the current directory
+launch-corral
+
+# Launch Gemini agents from a specific path
+launch-corral &lt;path-to-root&gt; gemini
+</code></pre>
+<hr />
+<h2 id="dashboard-overview">Dashboard Overview</h2>
+<p>The web dashboard provides quick-action buttons for each live session:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Esc / Arrow / Enter</strong></td>
+<td>Send navigation keys to the agent</td>
+</tr>
+<tr>
+<td><strong>Plan Mode</strong></td>
+<td>Toggle Claude Code plan mode</td>
+</tr>
+<tr>
+<td><strong>Accept Edits</strong></td>
+<td>Toggle Claude Code auto-accept mode</td>
+</tr>
+<tr>
+<td><strong>Bash Mode</strong></td>
+<td>Send <code>!</code> command to enter bash mode</td>
+</tr>
+<tr>
+<td><strong>/compact / /clear</strong></td>
+<td>Send compress or clear commands</td>
+</tr>
+<tr>
+<td><strong>Attach</strong></td>
+<td>Open a local terminal attached to the agent's tmux session</td>
+</tr>
+<tr>
+<td><strong>Restart</strong></td>
+<td>Restart the agent in the same tmux pane</td>
+</tr>
+<tr>
+<td><strong>Kill</strong></td>
+<td>Terminate the tmux session</td>
+</tr>
+</tbody>
+</table>
+<p>You can also type arbitrary commands in the input bar and send them to the selected agent.</p>
+<hr />
+<h2 id="background-services">Background Services</h2>
+<p>On startup, Corral launches three background services:</p>
+<ol>
+<li><strong>Session indexer</strong> (every 2 min) — Indexes all Claude sessions from <code>~/.claude/projects/**/*.jsonl</code> and Gemini sessions from <code>~/.gemini/tmp/*/chats/session-*.json</code>, builds a full-text search index (FTS5), and queues new sessions for auto-summarization</li>
+<li><strong>Batch summarizer</strong> — Continuously processes the summarization queue using Claude CLI</li>
+<li><strong>Git poller</strong> (every 2 min) — Polls git branch, commit, and remote URL for each live agent and stores snapshots in SQLite</li>
+</ol>
+<hr />
+<h2 id="scheduled-jobs">Scheduled Jobs</h2>
+<p>Corral supports cron-scheduled jobs that automatically launch agents in isolated git worktrees. Create and manage them from the Scheduled section in the sidebar.</p>
+<p>Each scheduled job:</p>
+<ul>
+<li>Creates a fresh git worktree from the specified branch</li>
+<li>Launches an agent (Claude or Gemini) with optional CLI flags</li>
+<li>Sends the configured prompt to the agent</li>
+<li>Monitors the session with a configurable timeout</li>
+<li>Cleans up the worktree on completion (optional)</li>
+<li>Tags the session as "scheduled" for easy filtering in history</li>
+</ul>
+<p>See the <a href="api/jobs/">Jobs API</a> for programmatic access.</p>
+<hr />
+<h2 id="claude-code-hooks">Claude Code Hooks</h2>
+<p>To fully integrate Claude Code's agentic state and task management into the Corral dashboard, configure the provided hook scripts in your Claude Code <code>settings.json</code> (usually at <code>~/.claude.json</code> or <code>~/.claude/settings.json</code>):</p>
+<pre><code class="language-json">&quot;hooks&quot;: {
+    &quot;PostToolUse&quot;: [
+      {
+        &quot;matcher&quot;: &quot;TaskCreate|TaskUpdate&quot;,
+        &quot;hooks&quot;: [
+          {
+            &quot;type&quot;: &quot;command&quot;,
+            &quot;command&quot;: &quot;corral-hook-task-sync&quot;
+          }
+        ]
+      },
+      {
+        &quot;matcher&quot;: &quot;&quot;,
+        &quot;hooks&quot;: [
+          {
+            &quot;type&quot;: &quot;command&quot;,
+            &quot;command&quot;: &quot;corral-hook-agentic-state&quot;
+          }
+        ]
+      }
+    ],
+    &quot;Stop&quot;: [
+      {
+        &quot;matcher&quot;: &quot;&quot;,
+        &quot;hooks&quot;: [
+          {
+            &quot;type&quot;: &quot;command&quot;,
+            &quot;command&quot;: &quot;corral-hook-agentic-state&quot;
+          }
+        ]
+      }
+    ],
+    &quot;Notification&quot;: [
+      {
+        &quot;matcher&quot;: &quot;&quot;,
+        &quot;hooks&quot;: [
+          {
+            &quot;type&quot;: &quot;command&quot;,
+            &quot;command&quot;: &quot;corral-hook-agentic-state&quot;
+          }
+        ]
+      }
+    ]
+}
+</code></pre>
+<hr />
+<h2 id="agent-protocol">Agent Protocol</h2>
+<p>Agents emit structured markers using the <code>||PULSE:&lt;EVENT_TYPE&gt; &lt;payload&gt;||</code> format. The dashboard parses these from agent output in real time:</p>
+<pre><code>||PULSE:STATUS &lt;Short description of current task&gt;||
+||PULSE:SUMMARY &lt;One-sentence high-level goal&gt;||
+||PULSE:CONFIDENCE &lt;1-5&gt; &lt;short reason&gt;||
+</code></pre>
+<p>The protocol is automatically injected via <code>PROTOCOL.md</code> when launching agents.</p>
+<hr />
+<h2 id="remote-server-ssh">Remote Server (SSH)</h2>
+<p>If running Corral on a remote server, forward the dashboard port over SSH:</p>
+<pre><code class="language-bash">ssh -L 8420:localhost:8420 user@remote-host
+</code></pre>
+<p>Then open <code>http://localhost:8420</code> in your local browser. Add to <code>~/.ssh/config</code> for persistence:</p>
+<pre><code>Host my-dev-server
+    HostName remote-host
+    User user
+    LocalForward 8420 localhost:8420
+</code></pre>
+<hr />
+<h2 id="dependencies">Dependencies</h2>
+<ul>
+<li>Python 3.8+</li>
+<li><a href="https://fastapi.tiangolo.com/">FastAPI</a> + <a href="https://www.uvicorn.org/">Uvicorn</a> — Web server</li>
+<li><a href="https://jinja.palletsprojects.com/">Jinja2</a> — HTML templating</li>
+<li><a href="https://github.com/omnilib/aiosqlite">aiosqlite</a> — Async SQLite (WAL mode)</li>
+<li>tmux — Session management</li>
+<li>Claude CLI (optional) — Powers auto-summarization</li>
+</ul>
+<hr />
+<h2 id="contributing">Contributing</h2>
+<p>We welcome contributions! Whether it's adding support for new AI coding agents or improving the web dashboard, please feel free to open an issue or submit a pull request on <a href="https://github.com/cdknorow/corral">GitHub</a>.</p>
+<h2 id="license">License</h2>
+<p>MIT License.</p></div>
             </div>
         </div>
 
@@ -195,5 +412,5 @@ docs/
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-03-11 07:56:08.236822+00:00
+Build Date UTC : 2026-03-11 07:59:23.557843+00:00
 -->
