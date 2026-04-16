@@ -15,7 +15,9 @@ from __future__ import annotations
 
 from coral.agents.base import BaseAgent, ExtractedSession
 from coral.agents.claude import ClaudeAgent
+from coral.agents.codex import CodexAgent
 from coral.agents.gemini import GeminiAgent
+from coral.agents.qwen import QwenAgent
 
 # Singleton instances keyed by agent_type
 _REGISTRY: dict[str, BaseAgent] = {}
@@ -23,7 +25,7 @@ _REGISTRY: dict[str, BaseAgent] = {}
 
 def _ensure_registry() -> None:
     if not _REGISTRY:
-        for cls in (ClaudeAgent, GeminiAgent):
+        for cls in (ClaudeAgent, CodexAgent, GeminiAgent, QwenAgent):
             instance = cls()
             _REGISTRY[instance.agent_type] = instance
 
@@ -46,4 +48,4 @@ def register_agent(agent: BaseAgent) -> None:
     _REGISTRY[agent.agent_type] = agent
 
 
-__all__ = ["BaseAgent", "ExtractedSession", "ClaudeAgent", "GeminiAgent", "get_agent", "get_all_agents", "register_agent"]
+__all__ = ["BaseAgent", "ExtractedSession", "ClaudeAgent", "CodexAgent", "GeminiAgent", "QwenAgent", "get_agent", "get_all_agents", "register_agent"]

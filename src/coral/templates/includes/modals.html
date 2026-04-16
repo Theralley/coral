@@ -88,7 +88,9 @@
                         <label>Agent Type:
                             <select id="launch-type">
                                 <option value="claude">Claude</option>
+                                <option value="codex">Codex</option>
                                 <option value="gemini">Gemini</option>
+                                <option value="qwen">Qwen</option>
                             </select>
                         </label>
                         <label>Flags <span style="color:var(--text-muted);font-weight:normal">(optional)</span>:
@@ -97,6 +99,7 @@
                         <div class="flag-shortcuts">
                             <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('launch-flags','--chrome')">--chrome</button>
                             <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('launch-flags','--dangerously-skip-permissions')">--dangerously-skip-permissions</button>
+                            <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('launch-flags','--yolo')">--yolo</button>
                         </div>
                     </div>
                     <div class="agent-col-presets">
@@ -194,7 +197,9 @@
                         <label>Agent Type:
                             <select id="team-agent-type">
                                 <option value="claude">Claude</option>
+                                <option value="codex">Codex</option>
                                 <option value="gemini">Gemini</option>
+                                <option value="qwen">Qwen</option>
                             </select>
                         </label>
                         <label>Flags <span style="color:var(--text-muted);font-weight:normal">(optional, applied to all agents)</span>:
@@ -203,6 +208,7 @@
                         <div class="flag-shortcuts">
                             <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('team-flags','--chrome')">--chrome</button>
                             <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('team-flags','--dangerously-skip-permissions')">--dangerously-skip-permissions</button>
+                            <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('team-flags','--yolo')">--yolo</button>
                         </div>
                     </div>
                     <div class="team-col-right">
@@ -338,7 +344,9 @@
                 <dd>
                     <select id="settings-agent-type" class="settings-select">
                         <option value="claude">Claude</option>
+                        <option value="codex">Codex</option>
                         <option value="gemini">Gemini</option>
+                        <option value="qwen">Qwen</option>
                     </select>
                 </dd>
                 <dt>Default Working Directory</dt>
@@ -468,7 +476,9 @@
                 <label>Agent Type:
                     <select id="job-modal-agent">
                         <option value="claude">Claude</option>
+                        <option value="codex">Codex</option>
                         <option value="gemini">Gemini</option>
+                        <option value="qwen">Qwen</option>
                     </select>
                 </label>
             </div>
