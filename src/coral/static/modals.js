@@ -947,6 +947,8 @@ async function launchTeam() {
     };
     if (boardServer) payload.board_server = boardServer;
 
+    console.log("[launchTeam] payload:", JSON.stringify(payload, null, 2));
+
     try {
         const resp = await fetch("/api/sessions/launch-team", {
             method: "POST",

@@ -282,6 +282,15 @@ app.mount("/api/board", create_board_app())
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+
+@app.middleware("http")
+async def no_cache_static(request: Request, call_next):
+    """Disable browser caching for static JS/CSS so code changes take effect immediately."""
+    response = await call_next(request)
+    if request.url.path.startswith("/static/") and not request.url.path.startswith("/static/vendor/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
 # Backward-compatible aliases so existing code/tests that reference
 # ``coral.web_server._track_status_summary_events`` etc. still work.
 _track_status_summary_events = live_sessions_api._track_status_summary_events

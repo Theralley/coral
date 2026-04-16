@@ -881,6 +881,8 @@ async def launch_team(body: dict):
         agent_icon = agent_def.get("icon", "").strip() or None
         # Per-agent type override, falling back to team-level agent_type
         effective_type = agent_def.get("agent_type", "").strip() or agent_type
+        log.info("[launch-team] agent=%s per_type=%r team_type=%r -> effective=%s",
+                 agent_name, agent_def.get("agent_type"), agent_type, effective_type)
         if not agent_name:
             continue
 
