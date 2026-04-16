@@ -581,11 +581,28 @@ export function sendQuickCommand(command) {
 
 // ── Image Drag & Drop ──────────────────────────────────────────────────────
 
-export function initImageDrop() {
-    const commandPane = document.getElementById("command-pane");
-    if (!commandPane) return;
+// Image extensions accepted by the upload endpoint — used as a fallback when
+// the browser doesn't populate file.type (common on macOS Finder drag).
+const IMAGE_EXTENSIONS = new Set([
+    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.tiff',
+]);
 
-    // Create drop overlay
+function isImageFile(file) {
+    if (file.type && file.type.startsWith("image/")) return true;
+    // Fallback: check extension (macOS Finder drops often have empty type)
+    const ext = file.name ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
+    return IMAGE_EXTENSIONS.has(ext);
+}
+
+export function initImageDrop() {
+    // Use the entire session view as the drop zone so users can drop anywhere,
+    // falling back to command-pane if the view isn't in the DOM yet.
+    const dropZone = document.getElementById("live-session-view") || document.getElementById("command-pane");
+    if (!dropZone) return;
+
+    const commandPane = document.getElementById("command-pane");
+
+    // Create drop overlay — anchored to the drop zone
     const overlay = document.createElement("div");
     overlay.id = "drop-overlay";
     overlay.className = "drop-overlay";
@@ -596,24 +613,24 @@ export function initImageDrop() {
         <span>Drop image to attach</span>
     </div>`;
     overlay.style.display = "none";
-    commandPane.style.position = "relative";
-    commandPane.appendChild(overlay);
+    dropZone.style.position = "relative";
+    dropZone.appendChild(overlay);
 
     let dragCounter = 0;
 
-    commandPane.addEventListener("dragenter", (e) => {
+    dropZone.addEventListener("dragenter", (e) => {
         e.preventDefault();
         if (!hasImageFiles(e)) return;
         dragCounter++;
         overlay.style.display = "flex";
     });
 
-    commandPane.addEventListener("dragover", (e) => {
+    dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         if (hasImageFiles(e)) e.dataTransfer.dropEffect = "copy";
     });
 
-    commandPane.addEventListener("dragleave", (e) => {
+    dropZone.addEventListener("dragleave", (e) => {
         e.preventDefault();
         dragCounter--;
         if (dragCounter <= 0) {
@@ -622,14 +639,12 @@ export function initImageDrop() {
         }
     });
 
-    commandPane.addEventListener("drop", async (e) => {
+    dropZone.addEventListener("drop", async (e) => {
         e.preventDefault();
         dragCounter = 0;
         overlay.style.display = "none";
 
-        const files = [...(e.dataTransfer?.files || [])].filter(f =>
-            f.type.startsWith("image/")
-        );
+        const files = [...(e.dataTransfer?.files || [])].filter(f => isImageFile(f));
         if (files.length === 0) {
             showToast("No image files found in drop", true);
             return;
@@ -671,11 +686,15 @@ export function initImageDrop() {
 
 function hasImageFiles(e) {
     if (e.dataTransfer?.types?.includes("Files")) {
-        // Check items if available
+        // Check items if available — but on macOS Finder drag, item.type is
+        // often empty during dragenter/dragover.  Accept any file-kind item
+        // when the type is unknown; the drop handler does the real filtering.
         const items = e.dataTransfer.items;
         if (items) {
             for (const item of items) {
-                if (item.kind === "file" && item.type.startsWith("image/")) return true;
+                if (item.kind === "file") {
+                    if (!item.type || item.type.startsWith("image/")) return true;
+                }
             }
         }
         return true; // Can't check types on dragenter in some browsers, assume images
