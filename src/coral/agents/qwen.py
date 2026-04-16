@@ -106,7 +106,8 @@ class QwenAgent(BaseAgent):
         if flags:
             parts.extend(flags)
 
-        # Pass initial prompt
+        # Pass initial prompt using --prompt-interactive so Qwen stays
+        # in interactive mode (positional prompt defaults to one-shot).
         cli_prompt = prompt or ""
         if board_name:
             from coral.tools.session_manager import DEFAULT_ORCHESTRATOR_PROMPT, DEFAULT_WORKER_PROMPT
@@ -121,7 +122,7 @@ class QwenAgent(BaseAgent):
         if cli_prompt:
             prompt_file = Path(f"/tmp/coral_prompt_{session_id}.txt")
             prompt_file.write_text(cli_prompt)
-            parts.append(f"\"$(cat '{prompt_file}')\"")
+            parts.append(f"--prompt-interactive \"$(cat '{prompt_file}')\"")
 
         return " ".join(parts)
 
