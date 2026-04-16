@@ -79,23 +79,20 @@ class CodexAgent(BaseAgent):
         # Codex uses --dangerously-bypass-approvals-and-sandbox for yolo mode
         parts.append("--dangerously-bypass-approvals-and-sandbox")
 
-        # Build system prompt from protocol + board instructions
+        # Build system prompt from protocol + board instructions.
+        # Codex CLI has no --system-prompt flag, so we prepend system
+        # instructions to the initial prompt text.
         board_prompt = self._build_board_system_prompt(board_name, role, prompt, prompt_overrides=prompt_overrides)
         sys_parts = []
         if protocol_path and protocol_path.exists():
             sys_parts.append(protocol_path.read_text())
         if board_prompt:
             sys_parts.append(board_prompt)
-        if sys_parts:
-            import tempfile
-            tmp = Path(tempfile.gettempdir()) / f"coral_codex_system_{session_id}.md"
-            tmp.write_text("\n\n".join(sys_parts))
-            parts.append(f'--system-prompt-override-filepath "{tmp}"')
 
         if flags:
             parts.extend(flags)
 
-        # Pass initial prompt
+        # Build the full prompt: system instructions (if any) + user prompt
         cli_prompt = prompt or ""
         if board_name:
             from coral.tools.session_manager import DEFAULT_ORCHESTRATOR_PROMPT, DEFAULT_WORKER_PROMPT
@@ -107,6 +104,12 @@ class CodexAgent(BaseAgent):
                 template = overrides.get("default_prompt_worker") or DEFAULT_WORKER_PROMPT
             action_text = template.replace("{board_name}", board_name)
             cli_prompt = f"{cli_prompt}\n\n{action_text}" if cli_prompt else action_text
+
+        # Prepend system instructions to prompt since codex has no system prompt flag
+        if sys_parts:
+            system_text = "\n\n".join(sys_parts)
+            cli_prompt = f"{system_text}\n\n---\n\n{cli_prompt}" if cli_prompt else system_text
+
         if cli_prompt:
             prompt_file = Path(f"/tmp/coral_prompt_{session_id}.txt")
             prompt_file.write_text(cli_prompt)

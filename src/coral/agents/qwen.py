@@ -89,6 +89,8 @@ class QwenAgent(BaseAgent):
             parts.append(f"--session-id {session_id}")
 
         # Build system prompt from protocol + board instructions
+        # Write to a temp file and use $(cat ...) to avoid shell parsing issues
+        # (the protocol text contains || which zsh interprets as OR)
         board_prompt = self._build_board_system_prompt(board_name, role, prompt, prompt_overrides=prompt_overrides)
         sys_parts = []
         if protocol_path and protocol_path.exists():
@@ -96,8 +98,10 @@ class QwenAgent(BaseAgent):
         if board_prompt:
             sys_parts.append(board_prompt)
         if sys_parts:
-            combined = "\n\n".join(sys_parts)
-            parts.append(f"--append-system-prompt \"{combined[:2000]}\"")
+            import tempfile
+            tmp = Path(tempfile.gettempdir()) / f"coral_qwen_system_{session_id}.md"
+            tmp.write_text("\n\n".join(sys_parts))
+            parts.append(f"--append-system-prompt \"$(cat '{tmp}')\"")
 
         if flags:
             parts.extend(flags)
