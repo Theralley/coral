@@ -702,7 +702,7 @@ function _loadTeamTemplate(name) {
     document.getElementById("team-agents-list").innerHTML = "";
 
     for (const agent of tmpl.agents) {
-        _addTeamAgent(agent.name, agent.prompt);
+        _addTeamAgent(agent.name, agent.prompt, agent.agent_type || "");
     }
     if (tmpl.flags) {
         document.getElementById("team-flags").value = tmpl.flags;
@@ -721,7 +721,12 @@ async function _saveTeamTemplate() {
     for (const row of rows) {
         const name = row.querySelector(".team-agent-name").value.trim();
         const prompt = row.querySelector(".team-agent-prompt").value.trim();
-        if (name) agents.push({ name, prompt });
+        const agentType = row.querySelector(".team-agent-type-select")?.value || "";
+        if (name) {
+            const agent = { name, prompt };
+            if (agentType) agent.agent_type = agentType;
+            agents.push(agent);
+        }
     }
     if (agents.length === 0) { showToast("At least one agent needs a name", "error"); return; }
 
@@ -764,11 +769,14 @@ function _addTeamAgent(defaultName, defaultPrompt, defaultAgentType) {
     const collapsed = hasContent;
     const agentTypeVal = defaultAgentType || "";
 
+    const typeBadgeHtml = agentTypeVal ? `<span class="badge ${escapeHtml(agentTypeVal)} team-agent-type-badge">${escapeHtml(agentTypeVal)}</span>` : '';
+
     row.innerHTML = `
         <div class="team-agent-card ${collapsed ? '' : 'editing'}">
             <div class="team-agent-summary" onclick="this.closest('.team-agent-card').classList.toggle('editing')">
                 <div class="team-agent-summary-left">
                     <span class="team-agent-role-name">${escapeHtml(defaultName || 'New Agent')}</span>
+                    <span class="team-agent-type-badge-wrap">${typeBadgeHtml}</span>
                     <span class="team-agent-prompt-preview">${escapeHtml(_truncatePrompt(defaultPrompt, 200))}</span>
                 </div>
                 <div class="team-agent-summary-actions">
@@ -785,7 +793,7 @@ function _addTeamAgent(defaultName, defaultPrompt, defaultAgentType) {
                             oninput="const card=this.closest('.team-agent-row'); card.querySelector('.team-agent-role-name').textContent=this.value||'New Agent'">
                     </label>
                     <label style="flex-shrink:0;width:100px">Agent Type:
-                        <select class="team-agent-type-select">
+                        <select class="team-agent-type-select" onchange="const row=this.closest('.team-agent-row'); const wrap=row.querySelector('.team-agent-type-badge-wrap'); const v=this.value; wrap.innerHTML=v?'<span class=&quot;badge '+v+' team-agent-type-badge&quot;>'+v+'</span>':'';">
                             <option value="">(team default)</option>
                             <option value="claude" ${agentTypeVal === 'claude' ? 'selected' : ''}>Claude</option>
                             <option value="codex" ${agentTypeVal === 'codex' ? 'selected' : ''}>Codex</option>
