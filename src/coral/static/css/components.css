@@ -1729,6 +1729,13 @@
     flex: 1;
 }
 
+.team-agent-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+}
+
 .team-agent-role-name {
     font-size: 13px;
     font-weight: 600;
@@ -1736,6 +1743,24 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.team-agent-type-inline {
+    font-size: 11px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-left: 6px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.team-agent-type-inline:focus {
+    border-color: var(--accent);
+    outline: none;
 }
 
 .team-agent-prompt-preview {

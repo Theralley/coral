@@ -769,14 +769,20 @@ function _addTeamAgent(defaultName, defaultPrompt, defaultAgentType) {
     const collapsed = hasContent;
     const agentTypeVal = defaultAgentType || "";
 
-    const typeBadgeHtml = agentTypeVal ? `<span class="badge ${escapeHtml(agentTypeVal)} team-agent-type-badge">${escapeHtml(agentTypeVal)}</span>` : '';
-
     row.innerHTML = `
         <div class="team-agent-card ${collapsed ? '' : 'editing'}">
-            <div class="team-agent-summary" onclick="this.closest('.team-agent-card').classList.toggle('editing')">
+            <div class="team-agent-summary" onclick="if(event.target.closest('.team-agent-type-inline'))return; this.closest('.team-agent-card').classList.toggle('editing')">
                 <div class="team-agent-summary-left">
-                    <span class="team-agent-role-name">${escapeHtml(defaultName || 'New Agent')}</span>
-                    <span class="team-agent-type-badge-wrap">${typeBadgeHtml}</span>
+                    <div class="team-agent-name-row">
+                        <span class="team-agent-role-name">${escapeHtml(defaultName || 'New Agent')}</span>
+                        <select class="team-agent-type-select team-agent-type-inline" onclick="event.stopPropagation()" onchange="event.stopPropagation()">
+                            <option value="">default</option>
+                            <option value="claude" ${agentTypeVal === 'claude' ? 'selected' : ''}>claude</option>
+                            <option value="codex" ${agentTypeVal === 'codex' ? 'selected' : ''}>codex</option>
+                            <option value="gemini" ${agentTypeVal === 'gemini' ? 'selected' : ''}>gemini</option>
+                            <option value="qwen" ${agentTypeVal === 'qwen' ? 'selected' : ''}>qwen</option>
+                        </select>
+                    </div>
                     <span class="team-agent-prompt-preview">${escapeHtml(_truncatePrompt(defaultPrompt, 200))}</span>
                 </div>
                 <div class="team-agent-summary-actions">
@@ -791,15 +797,6 @@ function _addTeamAgent(defaultName, defaultPrompt, defaultAgentType) {
                     <label style="flex:1">Name / Role:
                         <input type="text" class="team-agent-name" placeholder="e.g. QA Engineer, Frontend Dev" value="${escapeAttr(defaultName || '')}"
                             oninput="const card=this.closest('.team-agent-row'); card.querySelector('.team-agent-role-name').textContent=this.value||'New Agent'">
-                    </label>
-                    <label style="flex-shrink:0;width:100px">Agent Type:
-                        <select class="team-agent-type-select" onchange="const row=this.closest('.team-agent-row'); const wrap=row.querySelector('.team-agent-type-badge-wrap'); const v=this.value; wrap.innerHTML=v?'<span class=&quot;badge '+v+' team-agent-type-badge&quot;>'+v+'</span>':'';">
-                            <option value="">(team default)</option>
-                            <option value="claude" ${agentTypeVal === 'claude' ? 'selected' : ''}>Claude</option>
-                            <option value="codex" ${agentTypeVal === 'codex' ? 'selected' : ''}>Codex</option>
-                            <option value="gemini" ${agentTypeVal === 'gemini' ? 'selected' : ''}>Gemini</option>
-                            <option value="qwen" ${agentTypeVal === 'qwen' ? 'selected' : ''}>Qwen</option>
-                        </select>
                     </label>
                     <div style="flex-shrink:0;text-align:center">
                         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:2px">Icon</div>
