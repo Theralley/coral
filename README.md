@@ -54,7 +54,9 @@ coral
 
 Open **http://localhost:8420** in your browser. Click **+New** to launch your first agent or team.
 
-> **Requirements:** Python 3.8+, tmux. Works with Claude Code and Gemini CLI out of the box. Extensible to any CLI-based agent.
+> **Requirements:** Python 3.8+, tmux. Works with Claude Code, Gemini CLI, Codex CLI, and Qwen Code out of the box. Extensible to any CLI-based agent.
+>
+> **Note:** Codex and Qwen Code support is in development. Core launch, team, and history features work; some advanced features may be limited.
 
 ## Features
 
@@ -66,6 +68,18 @@ Monitor all your agents from a single web interface with live status updates, ac
 - **Attach/Restart/Kill** — full lifecycle control for every agent session
 - **Themes & customization** — built-in themes, custom macros, AI-generated themes
 
+### Multi-Agent Support
+Coral supports four agent backends, including per-agent type selection in teams:
+
+| Agent | CLI | Auto-Approve Flag | Status |
+|-------|-----|-------------------|--------|
+| **Claude Code** | `claude` | `--dangerously-skip-permissions` | Stable |
+| **Gemini CLI** | `gemini` | (user flags) | Stable |
+| **Codex CLI** | `codex` | `--dangerously-bypass-approvals-and-sandbox` (built-in) | In Development |
+| **Qwen Code** | `qwen` | `--yolo` (built-in) | In Development |
+
+Mix and match agent types within a single team — for example, a Claude orchestrator coordinating Codex and Qwen workers.
+
 ### Agent Teams
 Launch coordinated teams of agents with roles, behavior prompts, and a shared message board. [Learn more below.](#agent-teams)
 
@@ -73,6 +87,7 @@ Launch coordinated teams of agents with roles, behavior prompts, and a shared me
 Browse your complete AI session history with full-text search, tags, notes, and auto-generated summaries.
 
 - **Full-text search** across all sessions (SQLite FTS5 with porter stemming)
+- **Source filtering** — filter history by agent type (Claude, Codex, Gemini, Qwen)
 - **Auto-summarization** — sessions are summarized automatically using AI
 - **Markdown notes & tags** — annotate any session for future reference
 - **Git integration** — tracks commits, branches, and changed files per session

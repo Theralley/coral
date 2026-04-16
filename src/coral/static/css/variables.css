@@ -38,6 +38,8 @@
     /* Agent Badges */
     --badge-claude: #7c3aed;
     --badge-gemini: #2563eb;
+    --badge-codex: #10a37f;
+    --badge-qwen: #e06c2e;
 
     /* Shadows */
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25);
@@ -174,6 +176,8 @@
     /* Agent Badges */
     --badge-claude: #7c3aed;
     --badge-gemini: #2563eb;
+    --badge-codex: #10a37f;
+    --badge-qwen: #e06c2e;
 
     /* Shadows */
     --shadow-md: 0 4px 16px rgba(31, 35, 40, 0.12);

@@ -1022,7 +1022,7 @@ export function renderHistorySessions(sessions, total, page, pageSize) {
         const label = s.summary_title || s.summary || s.session_id;
         const truncated = label.length > 40 ? label.substring(0, 40) + "..." : label;
         const isActive = state.currentSession && state.currentSession.type === "history" && state.currentSession.name === s.session_id;
-        const typeTag = s.source_type === "gemini" ? '<span class="badge gemini">gemini</span>' : "";
+        const typeTag = s.source_type && s.source_type !== "claude" ? `<span class="badge ${escapeHtml(s.source_type)}">${escapeHtml(s.source_type)}</span>` : "";
         const branchTag = s.branch ? `<span class="sidebar-branch">${escapeHtml(s.branch)}</span>` : "";
         const tagDots = s.tags ? renderSidebarTagDots(s.tags) : "";
         const timeStr = s.last_timestamp ? formatShortTime(s.last_timestamp) : "";

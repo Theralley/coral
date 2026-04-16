@@ -265,6 +265,9 @@
                 <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('restart-flags','--chrome')">--chrome</button>
                 <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('restart-flags','--dangerously-skip-permissions')">--dangerously-skip-permissions</button>
             </div>
+            <div class="flag-shortcuts">
+                <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('restart-flags','--yolo')">--yolo</button>
+            </div>
             <div class="modal-actions">
                 <button class="btn" onclick="hideRestartModal()">Cancel</button>
                 <button class="btn btn-warning" onclick="confirmRestart()">Restart</button>
@@ -496,6 +499,9 @@
                 <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('job-modal-flags','--chrome')">--chrome</button>
                 <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('job-modal-flags','--dangerously-skip-permissions')">--dangerously-skip-permissions</button>
             </div>
+            <div class="flag-shortcuts">
+                <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('job-modal-flags','--yolo')">--yolo</button>
+            </div>
             <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
                 <label>Max Duration (seconds):
                     <input type="number" id="job-modal-timeout" value="3600" min="60">
@@ -613,6 +619,14 @@
                     <label>Name / Role:
                         <input type="text" id="add-agent-board-agent-name" placeholder="e.g. Security Reviewer">
                     </label>
+                    <label>Agent Type:
+                        <select id="add-agent-board-type">
+                            <option value="claude">Claude</option>
+                            <option value="codex">Codex</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="qwen">Qwen</option>
+                        </select>
+                    </label>
                     <label class="agent-prompt-label" for="add-agent-board-prompt">Behavior Prompt:</label>
                     <textarea id="add-agent-board-prompt" rows="5" placeholder="Describe the agent's role and behavior..."></textarea>
                     <label>Flags <span style="color:var(--text-muted);font-weight:normal">(optional)</span>:
@@ -620,6 +634,9 @@
                     </label>
                     <div class="flag-shortcuts">
                         <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('add-agent-board-flags','--dangerously-skip-permissions')">--dangerously-skip-permissions</button>
+                    </div>
+                    <div class="flag-shortcuts">
+                        <button class="btn btn-small flag-shortcut-btn" onclick="toggleFlag('add-agent-board-flags','--yolo')">--yolo</button>
                     </div>
                 </div>
             </div>

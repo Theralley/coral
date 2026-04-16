@@ -76,6 +76,7 @@ class QwenAgent(BaseAgent):
         role: str | None = None,
         prompt: str | None = None,
         prompt_overrides: dict[str, str] | None = None,
+        board_type: str | None = None,
     ) -> str:
         parts = ["qwen"]
 

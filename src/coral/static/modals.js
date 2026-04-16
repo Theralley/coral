@@ -121,9 +121,14 @@ export function hideLaunchModal() {
  *   'skip' — user wants to launch without it
  *   null — user cancelled
  */
-function _checkPermissionFlag(flagsStr) {
+function _checkPermissionFlag(flagsStr, agentType) {
     return new Promise((resolve) => {
-        if (flagsStr && flagsStr.includes('--dangerously-skip-permissions')) {
+        // Codex and Qwen bake in their auto-approve flags internally
+        if (agentType === 'codex' || agentType === 'qwen') {
+            resolve('skip');
+            return;
+        }
+        if (flagsStr && (flagsStr.includes('--dangerously-skip-permissions') || flagsStr.includes('--yolo') || flagsStr.includes('--dangerously-bypass-approvals-and-sandbox'))) {
             resolve('skip');
             return;
         }
@@ -179,7 +184,7 @@ export async function launchSession() {
 
     // Permission flag check (skip for terminals)
     if (_launchMode !== "terminal") {
-        const permResult = await _checkPermissionFlag(flagsStr);
+        const permResult = await _checkPermissionFlag(flagsStr, type);
         if (permResult === null) return;
         if (permResult === 'enable') {
             flagsStr = (flagsStr ? flagsStr + ' ' : '') + '--dangerously-skip-permissions';
@@ -526,8 +531,10 @@ export async function launchAgentToBoard() {
         return;
     }
 
+    const agentType = document.getElementById("add-agent-board-type").value || "claude";
+
     // Permission flag check
-    const permResult = await _checkPermissionFlag(flagsStr);
+    const permResult = await _checkPermissionFlag(flagsStr, agentType);
     if (permResult === null) return;
     if (permResult === 'enable') {
         flagsStr = (flagsStr ? flagsStr + ' ' : '') + '--dangerously-skip-permissions';
@@ -543,7 +550,7 @@ export async function launchAgentToBoard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 working_dir: workDir,
-                agent_type: "claude",
+                agent_type: agentType,
                 display_name: agentName,
                 flags,
                 prompt,
@@ -745,7 +752,7 @@ function _truncatePrompt(text, maxLen) {
     return text.substring(0, maxLen) + "\u2026";
 }
 
-function _addTeamAgent(defaultName, defaultPrompt) {
+function _addTeamAgent(defaultName, defaultPrompt, defaultAgentType) {
     _teamAgentCounter++;
     const idx = _teamAgentCounter;
     const list = document.getElementById("team-agents-list");
@@ -755,6 +762,7 @@ function _addTeamAgent(defaultName, defaultPrompt) {
 
     const hasContent = !!(defaultName || defaultPrompt);
     const collapsed = hasContent;
+    const agentTypeVal = defaultAgentType || "";
 
     row.innerHTML = `
         <div class="team-agent-card ${collapsed ? '' : 'editing'}">
@@ -775,6 +783,15 @@ function _addTeamAgent(defaultName, defaultPrompt) {
                     <label style="flex:1">Name / Role:
                         <input type="text" class="team-agent-name" placeholder="e.g. QA Engineer, Frontend Dev" value="${escapeAttr(defaultName || '')}"
                             oninput="const card=this.closest('.team-agent-row'); card.querySelector('.team-agent-role-name').textContent=this.value||'New Agent'">
+                    </label>
+                    <label style="flex-shrink:0;width:100px">Agent Type:
+                        <select class="team-agent-type-select">
+                            <option value="">(team default)</option>
+                            <option value="claude" ${agentTypeVal === 'claude' ? 'selected' : ''}>Claude</option>
+                            <option value="codex" ${agentTypeVal === 'codex' ? 'selected' : ''}>Codex</option>
+                            <option value="gemini" ${agentTypeVal === 'gemini' ? 'selected' : ''}>Gemini</option>
+                            <option value="qwen" ${agentTypeVal === 'qwen' ? 'selected' : ''}>Qwen</option>
+                        </select>
                     </label>
                     <div style="flex-shrink:0;text-align:center">
                         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:2px">Icon</div>
@@ -818,6 +835,8 @@ function _showAddAgentModal(mode) {
     document.getElementById("add-agent-board-agent-name").value = "";
     document.getElementById("add-agent-board-prompt").value = "";
     document.getElementById("add-agent-board-flags").value = "";
+    const agentTypeSelect = document.getElementById("add-agent-board-type");
+    if (agentTypeSelect) agentTypeSelect.value = "claude";
     _syncFlagButtons("add-agent-board-flags");
 
     if (mode === "team") {
@@ -839,12 +858,14 @@ function _showAddAgentModal(mode) {
 function _addAgentFromModal() {
     const name = document.getElementById("add-agent-board-agent-name").value.trim();
     const prompt = document.getElementById("add-agent-board-prompt").value.trim();
-    _addTeamAgent(name, prompt);
+    const agentTypeEl = document.getElementById("add-agent-board-type");
+    const agentType = agentTypeEl ? agentTypeEl.value : "";
+    _addTeamAgent(name, prompt, agentType);
     hideAddAgentBoardModal();
 }
 
-window._addTeamAgent = (name, prompt) => {
-    _addTeamAgent(name || "", prompt || "");
+window._addTeamAgent = (name, prompt, agentType) => {
+    _addTeamAgent(name || "", prompt || "", agentType || "");
 };
 
 function _onTeamBoardChange() {
@@ -878,7 +899,7 @@ async function launchTeam() {
     let flagsStr = document.getElementById("team-flags").value.trim();
 
     // Permission flag check
-    const permResult = await _checkPermissionFlag(flagsStr);
+    const permResult = await _checkPermissionFlag(flagsStr, agentType);
     if (permResult === null) return;
     if (permResult === 'enable') {
         flagsStr = (flagsStr ? flagsStr + ' ' : '') + '--dangerously-skip-permissions';
@@ -900,12 +921,14 @@ async function launchTeam() {
         const name = row.querySelector(".team-agent-name").value.trim();
         const prompt = row.querySelector(".team-agent-prompt").value.trim();
         const icon = row.querySelector(".team-agent-icon")?.value.trim() || "";
+        const perAgentType = row.querySelector(".team-agent-type-select")?.value || "";
         if (!name) {
             showToast("Each agent needs a name", true);
             return;
         }
         const agent = { name, prompt };
         if (icon) agent.icon = icon;
+        if (perAgentType) agent.agent_type = perAgentType;
         agents.push(agent);
     }
 

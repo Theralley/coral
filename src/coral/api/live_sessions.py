@@ -879,12 +879,14 @@ async def launch_team(body: dict):
         agent_name = agent_def.get("name", "").strip()
         agent_prompt = agent_def.get("prompt", "").strip()
         agent_icon = agent_def.get("icon", "").strip() or None
+        # Per-agent type override, falling back to team-level agent_type
+        effective_type = agent_def.get("agent_type", "").strip() or agent_type
         if not agent_name:
             continue
 
         # Launch the agent session
         result = await launch_claude_session(
-            working_dir, agent_type,
+            working_dir, effective_type,
             display_name=agent_name,
             flags=flags or None,
             prompt=agent_prompt or None,
@@ -900,7 +902,7 @@ async def launch_team(body: dict):
         # Board subscription handled by setup_board_and_prompt
         if board_name:
             _asyncio.create_task(setup_board_and_prompt(
-                result["session_id"], result["session_name"], agent_type,
+                result["session_id"], result["session_name"], effective_type,
                 board_name=board_name or None,
                 board_server=board_server, display_name=agent_name,
                 board_type=board_type,
