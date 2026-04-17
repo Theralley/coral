@@ -201,14 +201,112 @@ export function hideMacroModal() {
     document.getElementById("macro-modal").style.display = "none";
 }
 
+// ── Night Heartbeat ────────────────────────────────────────────────────────
+// Every 30 minutes, send a prompt nudging the agent to keep working (or to
+// no-op if it's already busy). Useful for overnight runs where you want the
+// agent to resume on its own after a Claude rate-limit window clears.
+const NIGHT_HEARTBEAT_MS = 30 * 60 * 1000;
+const NIGHT_HEARTBEAT_MSG = "This is a night heartbeat. If u dont know what to do, multi model test end to end. If multi model dont exist, test end to end and make sure the night are worth your time. If u see this again after 30min, skip if needed";
+const NIGHT_HEARTBEAT_STORAGE_KEY = "coral.nightHeartbeat.v1";
+
+// session_id → intervalId
+const _nightHeartbeatTimers = new Map();
+
+function _readNightHeartbeatIds() {
+    try {
+        const raw = localStorage.getItem(NIGHT_HEARTBEAT_STORAGE_KEY);
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+}
+
+function _writeNightHeartbeatIds(ids) {
+    try {
+        localStorage.setItem(NIGHT_HEARTBEAT_STORAGE_KEY, JSON.stringify([...ids]));
+    } catch {}
+}
+
+async function _sendNightHeartbeat(sessionName, agentType, sessionId) {
+    try {
+        await fetch(`/api/sessions/live/${encodeURIComponent(sessionName)}/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                command: NIGHT_HEARTBEAT_MSG,
+                agent_type: agentType,
+                session_id: sessionId,
+            }),
+        });
+    } catch (e) {
+        console.warn("[night-heartbeat] send failed", sessionId, e);
+    }
+}
+
+export function isNightHeartbeatOn(sessionId) {
+    return sessionId ? _nightHeartbeatTimers.has(sessionId) : false;
+}
+
+export function toggleNightHeartbeat() {
+    const s = state.currentSession;
+    if (!s || s.type !== "live" || !s.session_id) {
+        showToast("No live session selected", true);
+        return;
+    }
+    const sid = s.session_id;
+    const ids = _readNightHeartbeatIds();
+    if (_nightHeartbeatTimers.has(sid)) {
+        clearInterval(_nightHeartbeatTimers.get(sid));
+        _nightHeartbeatTimers.delete(sid);
+        ids.delete(sid);
+        _writeNightHeartbeatIds(ids);
+        showToast("Night heartbeat OFF");
+    } else {
+        const name = s.name, agentType = s.agent_type;
+        const timer = setInterval(
+            () => _sendNightHeartbeat(name, agentType, sid),
+            NIGHT_HEARTBEAT_MS,
+        );
+        _nightHeartbeatTimers.set(sid, timer);
+        ids.add(sid);
+        _writeNightHeartbeatIds(ids);
+        showToast("Night heartbeat ON — every 30min");
+    }
+    renderQuickActions();
+}
+
+// Called after loadLiveSessions populates state.liveSessions. Idempotent:
+// only spawns a timer if none already running for that session_id.
+export function restoreNightHeartbeats(liveSessions) {
+    const ids = _readNightHeartbeatIds();
+    if (!ids.size) return;
+    for (const sess of liveSessions || []) {
+        const sid = sess && sess.session_id;
+        if (!sid || !ids.has(sid) || _nightHeartbeatTimers.has(sid)) continue;
+        const name = sess.name, agentType = sess.agent_type;
+        const timer = setInterval(
+            () => _sendNightHeartbeat(name, agentType, sid),
+            NIGHT_HEARTBEAT_MS,
+        );
+        _nightHeartbeatTimers.set(sid, timer);
+    }
+}
+
+
 export function renderQuickActions() {
     const toolbar = document.getElementById("command-toolbar");
     const macros = getMacros();
+
+    const currentSid = state.currentSession && state.currentSession.session_id;
+    const hbOn = isNightHeartbeatOn(currentSid);
+    const hbClass = hbOn ? "btn-nav btn-mode btn-night-heartbeat is-on" : "btn-nav btn-mode btn-night-heartbeat";
+    const hbTooltip = hbOn
+        ? "Night heartbeat is ON — nudges this agent every 30 minutes. Click to turn off."
+        : "Night heartbeat: sends a keep-working prompt to this agent every 30 minutes. Survives Claude rate-limit pauses (just keeps pinging). Click to turn on.";
 
     const modeButtons = `
         <button class="btn-nav btn-mode" onclick="cycleModeToggle()" data-tooltip="Cycles through Default → Plan → Accept Edits modes (Shift+Tab). Each click advances one step."><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="11" x2="8" y2="11"/></svg><span class="btn-label">Mode</span></button>
         <button class="btn-nav btn-mode" onclick="sendQuickCommand('!')" data-tooltip="Prefixes your input with ! so Claude runs it as a shell command instead of a prompt."><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><polyline points="4 7 6 9 4 11"/><line x1="8" y1="11" x2="12" y2="11"/></svg><span class="btn-label">Bash</span></button>
         <button class="btn-nav btn-mode" onclick="sendRawKeys(['Escape','Escape'])" data-tooltip="Sends two Escape keys to Claude. Interrupts the current response, rejects a pending tool call, or backs out of a permission prompt."><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span class="btn-label">Rewind</span></button>
+        <button class="${hbClass}" onclick="toggleNightHeartbeat()" data-tooltip="${escapeAttr(hbTooltip)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="btn-label">Night</span></button>
     `;
 
     const macroButtons = macros.map((m, i) => {

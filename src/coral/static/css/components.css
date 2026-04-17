@@ -363,6 +363,23 @@
     color: var(--text-primary);
 }
 
+.btn-night-heartbeat.is-on {
+    background: #2a3d66;
+    border-color: #6fa8ff;
+    color: #cfe0ff;
+    box-shadow: 0 0 0 1px #6fa8ff44, 0 0 6px #6fa8ff33;
+    animation: night-heartbeat-pulse 3s ease-in-out infinite;
+}
+
+.btn-night-heartbeat.is-on svg {
+    opacity: 1;
+}
+
+@keyframes night-heartbeat-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px #6fa8ff44, 0 0 6px #6fa8ff33; }
+    50%      { box-shadow: 0 0 0 1px #6fa8ff88, 0 0 12px #6fa8ff66; }
+}
+
 .btn-send {
     background: var(--accent) !important;
     color: #fff !important;

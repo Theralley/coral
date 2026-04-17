@@ -3,12 +3,14 @@
 import { state } from './state.js';
 import { renderLiveSessions, renderHistorySessions } from './render.js';
 import { buildApiParams } from './search_filters.js';
+import { restoreNightHeartbeats } from './controls.js';
 
 export async function loadLiveSessions() {
     try {
         const resp = await fetch("/api/sessions/live");
         state.liveSessions = await resp.json();
         renderLiveSessions(state.liveSessions);
+        restoreNightHeartbeats(state.liveSessions);
     } catch (e) {
         console.error("Failed to load live sessions:", e);
     }

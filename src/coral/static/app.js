@@ -6,7 +6,7 @@ import { filterState, deserializeFromUrl, serializeToUrl,
          hasActiveFilters, countActiveFilters, resetFilters }
     from './search_filters.js';
 import { connectCoralWs } from './websocket.js';
-import { sendCommand, sendCommandWithTeam, resendInputPrompt, sendRawKeys, sendModeToggle, cycleModeToggle, sendQuickCommand, executeMacro, addMacro, deleteMacro, showMacroModal, hideMacroModal, attachTerminal, killSession, restartSession, hideRestartModal, confirmRestart, initImageDrop, removeAttachment, editGoal, refreshGoal, requestGoal } from './controls.js';
+import { sendCommand, sendCommandWithTeam, resendInputPrompt, sendRawKeys, sendModeToggle, cycleModeToggle, sendQuickCommand, executeMacro, addMacro, deleteMacro, showMacroModal, hideMacroModal, attachTerminal, killSession, restartSession, hideRestartModal, confirmRestart, initImageDrop, removeAttachment, editGoal, refreshGoal, requestGoal, toggleNightHeartbeat } from './controls.js';
 import { selectLiveSession, selectHistorySession, editAndResubmit, renameAgent, setAgentIcon, showEmojiPicker } from './sessions.js';
 import { toggleGroupCollapse, killGroup, killBoard, toggleTeamSleep, toggleAgentSleep, sleepAllAgents, wakeAllAgents, shareAgentTeam, saveTeamFromSidebar, killSessionDirect, showInfoDirect, attachDirect, restartDirect, showConfirmModal, hideConfirmModal, copyFolderPath, moveGroupUp, moveGroupDown, toggleGroupByTeam } from './render.js';
 import { syncPaneWidth, refreshCapture } from './capture.js';
@@ -67,6 +67,7 @@ window.sendRawKeys = sendRawKeys;
 window.sendModeToggle = sendModeToggle;
 window.cycleModeToggle = cycleModeToggle;
 window.sendQuickCommand = sendQuickCommand;
+window.toggleNightHeartbeat = toggleNightHeartbeat;
 window.executeMacro = executeMacro;
 window.addMacro = addMacro;
 window.deleteMacro = deleteMacro;
