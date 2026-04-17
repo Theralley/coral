@@ -48,6 +48,35 @@ log = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+# Auto-approve flags owned by each agent binary. A flag in this set that
+# does NOT match the target agent's binary is stripped before launch —
+# prevents Claude's --dangerously-skip-permissions from reaching codex,
+# and codex's --dangerously-bypass-approvals-and-sandbox from reaching
+# claude, etc. Unknown flags are passed through (user-owned escape hatch).
+_AUTO_APPROVE_BY_AGENT = {
+    "claude": {"--dangerously-skip-permissions"},
+    "codex": {"--dangerously-bypass-approvals-and-sandbox"},
+    "qwen": {"--yolo", "-y"},
+    "gemini": {"--yolo"},
+}
+_ALL_AUTO_APPROVE = {f for flags in _AUTO_APPROVE_BY_AGENT.values() for f in flags}
+
+
+def _filter_flags_for_agent(flags, effective_type: str) -> list[str]:
+    """Strip auto-approve flags that don't belong to the target agent binary.
+
+    `flags` may be a list or a whitespace-joined string (legacy callers).
+    Returns a list with mis-targeted auto-approve flags removed. All other
+    flags are preserved unchanged (user's escape hatch for --model etc.).
+    """
+    if not flags:
+        return []
+    if isinstance(flags, str):
+        flags = flags.split()
+    allowed = _AUTO_APPROVE_BY_AGENT.get(effective_type, set())
+    return [f for f in flags if f not in _ALL_AUTO_APPROVE or f in allowed]
+
 # Module-level dependencies, set by web_server.py during app setup
 store: CoralStore = None  # type: ignore[assignment]
 jsonl_reader: JsonlSessionReader = None  # type: ignore[assignment]
@@ -886,11 +915,22 @@ async def launch_team(body: dict):
         if not agent_name:
             continue
 
+        # Per-agent flag filtering: the team-level `flags` list is populated
+        # based on the team-level agent type, but per-agent overrides can pick
+        # a different binary. Strip auto-approve flags that don't belong to
+        # the effective agent's binary so we don't pass Claude flags to codex.
+        # (Each agent class does its own final filter in build_launch_command,
+        # but stripping here keeps launch logs clean and intent explicit.)
+        per_agent_flags = _filter_flags_for_agent(flags, effective_type)
+        if per_agent_flags != list(flags or []):
+            log.info("[launch-team] agent=%s filtered flags %r -> %r",
+                     agent_name, flags, per_agent_flags)
+
         # Launch the agent session
         result = await launch_claude_session(
             working_dir, effective_type,
             display_name=agent_name,
-            flags=flags or None,
+            flags=per_agent_flags or None,
             prompt=agent_prompt or None,
             board_name=board_name or None,
             board_server=board_server,

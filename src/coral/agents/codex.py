@@ -76,6 +76,10 @@ class CodexAgent(BaseAgent):
     ) -> str:
         parts = ["codex"]
 
+        # --no-alt-screen: run TUI inline so pipe-pane can capture output.
+        # (Codex's alt-screen mode is not captured by tmux pipe-pane.)
+        parts.append("--no-alt-screen")
+
         # Codex uses --dangerously-bypass-approvals-and-sandbox for yolo mode
         parts.append("--dangerously-bypass-approvals-and-sandbox")
 
@@ -90,7 +94,10 @@ class CodexAgent(BaseAgent):
             sys_parts.append(board_prompt)
 
         if flags:
-            parts.extend(flags)
+            # Strip auto-approve flags that belong to OTHER agents.
+            # Codex already adds --dangerously-bypass-approvals-and-sandbox above.
+            _skip = {"--dangerously-skip-permissions", "--yolo", "-y"}
+            parts.extend(f for f in flags if f not in _skip)
 
         # Build the full prompt: system instructions (if any) + user prompt
         cli_prompt = prompt or ""

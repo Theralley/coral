@@ -734,6 +734,21 @@ async def restart_session(
             board_type=stored_board_type,
         )
 
+        # Mirror fresh-launch diagnostics: record the exact command on disk
+        # and spawn the first-output pulse check so silent-fail restarts are
+        # visible too. Non-fatal if either step errors.
+        try:
+            Path(f"{LOG_DIR}/coral_launch_{new_session_id}.cmd").write_text(
+                f"# agent_type={effective_type}\n"
+                f"# working_dir={working_dir}\n"
+                f"# session_name={new_session_name}\n"
+                f"# log_file={new_log_file}\n"
+                f"# restarted_from_session_id={session_id}\n"
+                f"{cmd}\n"
+            )
+        except OSError:
+            pass
+
         rc, _, stderr = await run_cmd(
             "tmux", "send-keys", "-t", target, "-l", cmd
         )
@@ -745,6 +760,8 @@ async def restart_session(
         await run_cmd(
             "tmux", "send-keys", "-t", target, "Enter"
         )
+
+        _spawn_pulse_check(new_session_id, new_session_name, effective_type, new_log_file)
 
         # Migrate display_name and update live session record
         if session_id:
@@ -790,6 +807,75 @@ async def restart_session(
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+# Per-agent first-output timeouts. Claude's TUI is slow to paint on cold start
+# (OAuth refresh, plugin init). Others spin up faster. Tuned to stay above
+# the 95th-percentile cold-start paint time to avoid false-positive warnings.
+_FIRST_OUTPUT_TIMEOUT_BY_AGENT = {
+    "claude": 10.0,
+    "codex": 8.0,
+    "qwen": 6.0,
+    "gemini": 6.0,
+}
+
+# Strong refs for fire-and-forget pulse-check tasks. Python GCs weakly-held
+# tasks before they finish; holding them here until done-callback fires.
+_PENDING_TASKS: set[asyncio.Task] = set()
+
+
+def _spawn_pulse_check(
+    session_id: str, session_name: str, agent_type: str, log_file: str,
+) -> None:
+    t = asyncio.create_task(_first_output_pulse_check(
+        session_id, session_name, agent_type, log_file,
+    ))
+    _PENDING_TASKS.add(t)
+    t.add_done_callback(_PENDING_TASKS.discard)
+
+
+async def _first_output_pulse_check(
+    session_id: str,
+    session_name: str,
+    agent_type: str,
+    log_file: str,
+    timeout_s: float | None = None,
+) -> None:
+    """Poll an agent log for first output; on silence, capture the pane.
+
+    Runs after a tmux send-keys launch. If the log stays at 0 bytes for
+    `timeout_s`, the launch command likely failed before writing anything
+    (shell rejected the command, binary not found, etc.). We capture the
+    pane contents and log a diagnostic so silent-fail cases aren't
+    invisible. Non-fatal either way.
+    """
+    if timeout_s is None:
+        timeout_s = _FIRST_OUTPUT_TIMEOUT_BY_AGENT.get(agent_type, 8.0)
+    try:
+        # Use monotonic clock — wall-clock (time.time) can jump on NTP sync.
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            try:
+                if os.path.getsize(log_file) > 0:
+                    return
+            except OSError:
+                pass
+            await asyncio.sleep(0.25)
+
+        # Timeout — log stayed empty. Capture pane for diagnostics.
+        target = f"{session_name}.0"
+        rc, stdout, _ = await run_cmd(
+            "tmux", "capture-pane", "-t", target, "-p", "-S-200"
+        )
+        pane_snapshot = stdout if rc == 0 else "(capture-pane failed)"
+        _log = logging.getLogger(__name__)
+        _log.warning(
+            "[first-output-pulse] agent_type=%s session_id=%s log=%s "
+            "stayed empty after %.1fs; pane snapshot:\n%s",
+            agent_type, session_id, log_file, timeout_s, pane_snapshot,
+        )
+    except Exception:
+        pass  # Diagnostic only — never propagate.
 
 
 async def launch_claude_session(working_dir: str, agent_type: str = "claude", display_name: str | None = None, resume_session_id: str | None = None, flags: list[str] | None = None, is_job: bool = False, prompt: str | None = None, board_name: str | None = None, board_server: str | None = None, icon: str | None = None, board_type: str | None = None) -> dict[str, str]:
@@ -886,9 +972,28 @@ async def launch_claude_session(working_dir: str, agent_type: str = "claude", di
                 board_type=board_type,
             )
 
+            # Log the final launch command to disk so post-mortem debugging
+            # of empty/zero-byte agent logs has the exact command that was
+            # sent to the tmux pane. Non-fatal if write fails.
+            try:
+                Path(f"{log_dir}/coral_launch_{session_id}.cmd").write_text(
+                    f"# agent_type={agent_type}\n"
+                    f"# working_dir={working_dir}\n"
+                    f"# session_name={session_name}\n"
+                    f"# log_file={log_file}\n"
+                    f"{cmd}\n"
+                )
+            except OSError:
+                pass
+
             await asyncio.create_subprocess_exec(
                 "tmux", "send-keys", "-t", f"{session_name}.0", cmd, "Enter"
             )
+
+            # First-output pulse check: fire-and-forget task that polls the
+            # log file for at least 1 byte within 5 seconds. If empty, capture
+            # the pane and log a diagnostic so silent-fail cases are visible.
+            _spawn_pulse_check(session_id, session_name, agent_type, log_file)
 
         # Store display_name and register live session
         try:
