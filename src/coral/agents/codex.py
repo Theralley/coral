@@ -83,6 +83,22 @@ class CodexAgent(BaseAgent):
         # Codex uses --dangerously-bypass-approvals-and-sandbox for yolo mode
         parts.append("--dangerously-bypass-approvals-and-sandbox")
 
+        # Pre-trust the working directory so codex skips the interactive
+        # "Do you trust the contents of this directory?" prompt on first
+        # launch in a never-visited path. Codex stores trust per-path in
+        # ~/.codex/config.toml under [projects."<abs>"]; we seed the same
+        # key via -c so the prompt doesn't block agent startup.
+        if working_dir:
+            import shlex as _shlex
+            abs_cwd = str(Path(working_dir).resolve())
+            # Skip trust override for paths with embedded quotes — TOML
+            # escaping would be fragile and these are pathological anyway.
+            if '"' not in abs_cwd:
+                parts.append("-c")
+                parts.append(_shlex.quote(
+                    f'projects."{abs_cwd}".trust_level="trusted"'
+                ))
+
         # Build system prompt from protocol + board instructions.
         # Codex CLI has no --system-prompt flag, so we prepend system
         # instructions to the initial prompt text.
