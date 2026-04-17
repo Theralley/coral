@@ -36,6 +36,7 @@ from coral.api import uploads as uploads_api
 from coral.api import themes as themes_api
 from coral.api import board_remotes as board_remotes_api
 from coral.api import templates as templates_api
+from coral.api import mobile as mobile_api
 
 from coral.tools.utils import get_package_dir
 
@@ -139,6 +140,7 @@ async def lifespan(app: FastAPI):
     board_store = get_board_store()
     set_board_store(board_store)
     live_sessions_api.board_store = board_store
+    mobile_api.board_store = board_store
     board_notifier = MessageBoardNotifier(board_store)
 
     from coral.config import (
@@ -261,6 +263,7 @@ schedule_api.store = schedule_store
 webhooks_api.store = store
 webhooks_api._app = app
 tasks_api.store = schedule_store
+mobile_api.store = store
 
 # Register routers
 app.include_router(live_sessions_api.router)
@@ -273,6 +276,7 @@ app.include_router(uploads_api.router)
 app.include_router(themes_api.router)
 app.include_router(board_remotes_api.router)
 app.include_router(templates_api.router)
+app.include_router(mobile_api.router)
 
 # Mount self-contained message board sub-app
 from coral.messageboard.app import create_app as create_board_app
@@ -336,6 +340,12 @@ async def diff_view(request: Request):
     return templates.TemplateResponse(request=request, name="diff.html")
 
 
+@app.get("/mobile", response_class=HTMLResponse)
+async def mobile_view(request: Request):
+    """Serve the mobile phone dashboard."""
+    return templates.TemplateResponse(request=request, name="mobile.html")
+
+
 @app.get("/preview", response_class=HTMLResponse)
 async def preview_view(request: Request):
     """Serve the standalone file preview page."""
@@ -347,6 +357,7 @@ async def preview_view(request: Request):
 
 def main():
     import shutil
+    import sys
     import threading
     import webbrowser
     import uvicorn
@@ -372,6 +383,40 @@ def main():
     # Set data dir env var before any store/DB initialization
     if args.data_dir:
         os.environ["CORAL_DATA_DIR"] = str(Path(args.data_dir).expanduser().resolve())
+
+    # Print LAN URLs and mobile token so the user can open /mobile from a phone.
+    # LAN access requires binding to a non-loopback host (e.g. 0.0.0.0 or the LAN IP).
+    try:
+        from coral.api.mobile import enumerate_lan_ips, get_or_create_token
+        tok = get_or_create_token()
+        host = args.host
+        is_loopback = host in ("127.0.0.1", "localhost", "::1")
+        lan_ips = enumerate_lan_ips()
+
+        if is_loopback:
+            print(
+                f"\n  Mobile /mobile is localhost-only on {host}:{args.port}.",
+                file=sys.stderr,
+            )
+            print(
+                "  For phone/LAN access, restart with:  coral --host 0.0.0.0",
+                file=sys.stderr,
+            )
+            print("", file=sys.stderr)
+        else:
+            # Either 0.0.0.0 (all interfaces) or a specific LAN IP
+            shown_ips = lan_ips if host in ("0.0.0.0", "::") else [host]
+            if shown_ips:
+                print(f"\n  Coral Mobile — token: {tok}", file=sys.stderr)
+                for ip in shown_ips:
+                    print(f"  http://{ip}:{args.port}/mobile", file=sys.stderr)
+                print(
+                    "  ⚠ Dashboard at / is unauthenticated — only expose on trusted LANs.",
+                    file=sys.stderr,
+                )
+                print("", file=sys.stderr)
+    except Exception:
+        pass
 
     if not args.no_browser:
         url = f"http://localhost:{args.port}"

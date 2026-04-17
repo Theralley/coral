@@ -9,6 +9,35 @@ import { renderCaptureText, syncPaneWidth } from './capture.js';
 import { hideRestartModal } from './controls.js';
 import { updateTerminalTheme, getTerminal } from './xterm_renderer.js';
 
+/**
+ * Return the correct auto-approve flag for a given agent type.
+ * Codex and Qwen handle this internally, so no flag is needed.
+ */
+function _autoApproveFlag(agentType) {
+    // Codex and Qwen bake in their auto-approve flags internally (no flag needed).
+    // Gemini uses --yolo (same as Qwen).
+    if (agentType === 'codex' || agentType === 'qwen') return '';
+    if (agentType === 'gemini') return '--yolo';
+    return '--dangerously-skip-permissions';
+}
+
+/**
+ * When the agent type dropdown changes, swap the auto-approve flag
+ * in the associated flags input field.
+ */
+function _onAgentTypeChange(flagsInputId, newType) {
+    const input = document.getElementById(flagsInputId);
+    if (!input) return;
+    let flags = input.value.trim().split(/\s+/).filter(Boolean);
+    // Remove any existing auto-approve flags
+    flags = flags.filter(f => f !== '--dangerously-skip-permissions' && f !== '--yolo' && f !== '--dangerously-bypass-approvals-and-sandbox');
+    const newFlag = _autoApproveFlag(newType);
+    if (newFlag) flags.unshift(newFlag);
+    input.value = flags.join(' ');
+    _syncFlagButtons(flagsInputId);
+}
+window._onAgentTypeChange = _onAgentTypeChange;
+
 export function toggleFlag(inputId, flag) {
     const input = document.getElementById(inputId);
     const current = input.value.trim();
@@ -67,7 +96,8 @@ export function showLaunchModal() {
 
     // Reset agent form
     document.getElementById("launch-agent-name").value = "";
-    document.getElementById("launch-flags").value = "--dangerously-skip-permissions";
+    const launchType = document.getElementById("launch-type");
+    document.getElementById("launch-flags").value = _autoApproveFlag(launchType ? launchType.value : "claude");
     document.getElementById("launch-agent-prompt").value = "";
     document.getElementById("launch-board-name").value = "";
     document.getElementById("launch-board-server").value = "";
@@ -123,8 +153,8 @@ export function hideLaunchModal() {
  */
 function _checkPermissionFlag(flagsStr, agentType) {
     return new Promise((resolve) => {
-        // Codex and Qwen bake in their auto-approve flags internally
-        if (agentType === 'codex' || agentType === 'qwen') {
+        // Codex, Qwen, and Gemini bake in their auto-approve flags internally
+        if (agentType === 'codex' || agentType === 'qwen' || agentType === 'gemini') {
             resolve('skip');
             return;
         }
@@ -187,9 +217,12 @@ export async function launchSession() {
         const permResult = await _checkPermissionFlag(flagsStr, type);
         if (permResult === null) return;
         if (permResult === 'enable') {
-            flagsStr = (flagsStr ? flagsStr + ' ' : '') + '--dangerously-skip-permissions';
-            const flagsInput = document.getElementById("launch-flags");
-            if (flagsInput) flagsInput.value = flagsStr;
+            const approveFlag = _autoApproveFlag(type);
+            if (approveFlag) {
+                flagsStr = (flagsStr ? flagsStr + ' ' : '') + approveFlag;
+                const flagsInput = document.getElementById("launch-flags");
+                if (flagsInput) flagsInput.value = flagsStr;
+            }
         }
     }
 
@@ -489,7 +522,8 @@ export function showAddAgentToBoard(boardName, workDir) {
     document.getElementById("add-agent-board-name").value = boardName;
     document.getElementById("add-agent-board-workdir").value = workDir;
     document.getElementById("add-agent-board-subtitle").textContent = `Board: ${boardName}`;
-    document.getElementById("add-agent-board-flags").value = "--dangerously-skip-permissions";
+    const boardAgentType = document.getElementById("add-agent-board-type");
+    document.getElementById("add-agent-board-flags").value = _autoApproveFlag(boardAgentType ? boardAgentType.value : "claude");
     _syncFlagButtons("add-agent-board-flags");
 }
 
@@ -537,9 +571,12 @@ export async function launchAgentToBoard() {
     const permResult = await _checkPermissionFlag(flagsStr, agentType);
     if (permResult === null) return;
     if (permResult === 'enable') {
-        flagsStr = (flagsStr ? flagsStr + ' ' : '') + '--dangerously-skip-permissions';
-        const flagsInput = document.getElementById("add-agent-board-flags");
-        if (flagsInput) flagsInput.value = flagsStr;
+        const approveFlag = _autoApproveFlag(agentType);
+        if (approveFlag) {
+            flagsStr = (flagsStr ? flagsStr + ' ' : '') + approveFlag;
+            const flagsInput = document.getElementById("add-agent-board-flags");
+            if (flagsInput) flagsInput.value = flagsStr;
+        }
     }
 
     const flags = flagsStr ? flagsStr.split(/\s+/) : [];
@@ -616,7 +653,8 @@ async function _initTeamForm() {
     // Reset form
     document.getElementById("team-board-name").value = "";
     document.getElementById("team-board-server").value = "";
-    document.getElementById("team-flags").value = "--dangerously-skip-permissions";
+    const teamAgentType = document.getElementById("team-agent-type");
+    document.getElementById("team-flags").value = _autoApproveFlag(teamAgentType ? teamAgentType.value : "claude");
     _syncFlagButtons("team-flags");
     _teamAgentCounter = 0;
     const list = document.getElementById("team-agents-list");
@@ -907,9 +945,12 @@ async function launchTeam() {
     const permResult = await _checkPermissionFlag(flagsStr, agentType);
     if (permResult === null) return;
     if (permResult === 'enable') {
-        flagsStr = (flagsStr ? flagsStr + ' ' : '') + '--dangerously-skip-permissions';
-        const flagsInput = document.getElementById("team-flags");
-        if (flagsInput) flagsInput.value = flagsStr;
+        const approveFlag = _autoApproveFlag(agentType);
+        if (approveFlag) {
+            flagsStr = (flagsStr ? flagsStr + ' ' : '') + approveFlag;
+            const flagsInput = document.getElementById("team-flags");
+            if (flagsInput) flagsInput.value = flagsStr;
+        }
     }
 
     const flags = flagsStr ? flagsStr.split(/\s+/) : [];
@@ -1499,6 +1540,90 @@ function _syncFlagButtons(inputId) {
     });
 }
 
+// ── Mobile Access Modal ─────────────────────────────────────────────────
+
+export async function showMobileAccessModal() {
+    const modal = document.getElementById("mobile-access-modal");
+    const body = document.getElementById("mobile-access-body");
+    if (!modal || !body) return;
+    modal.style.display = "flex";
+    body.innerHTML = `<div style="color:var(--text-muted);font-size:13px">Loading…</div>`;
+    try {
+        const resp = await fetch("/api/mobile/info");
+        if (!resp.ok) {
+            const detail = resp.status === 403
+                ? "Mobile info is only reachable from the machine running Coral."
+                : `Request failed (${resp.status})`;
+            body.innerHTML = `<div style="color:var(--danger);font-size:13px">${escapeHtml(detail)}</div>`;
+            return;
+        }
+        const data = await resp.json();
+        _renderMobileAccess(body, data);
+    } catch (e) {
+        body.innerHTML = `<div style="color:var(--danger);font-size:13px">${escapeHtml(String(e))}</div>`;
+    }
+}
+
+export function hideMobileAccessModal() {
+    const modal = document.getElementById("mobile-access-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function _renderMobileAccess(container, data) {
+    const token = data.token || "";
+    const port = data.port || 8420;
+    const ips = Array.isArray(data.lan_ips) ? data.lan_ips : [];
+
+    const copyBtn = (value, label) =>
+        `<button class="btn btn-small" onclick="_copyMobileValue(this, ${JSON.stringify(value).replace(/"/g, '&quot;')})">${label}</button>`;
+
+    let urlsHtml = "";
+    if (ips.length === 0) {
+        urlsHtml = `<div style="color:var(--text-muted);font-size:13px">
+            No LAN IPs detected. If the dashboard started with <code>--host 127.0.0.1</code>,
+            restart with <code>coral --host 0.0.0.0</code> to expose <code>/mobile</code> on
+            your Wi-Fi.
+        </div>`;
+    } else {
+        urlsHtml = ips.map(ip => {
+            const url = `http://${ip}:${port}/mobile`;
+            return `<div style="display:flex;gap:8px;align-items:center">
+                <code style="flex:1;padding:6px 8px;background:var(--bg-secondary);border-radius:4px;font-size:12px;overflow-x:auto">${escapeHtml(url)}</code>
+                ${copyBtn(url, "Copy")}
+            </div>`;
+        }).join("");
+    }
+
+    container.innerHTML = `
+        <div>
+            <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Token</div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <code style="flex:1;padding:6px 8px;background:var(--bg-secondary);border-radius:4px;font-size:12px;word-break:break-all">${escapeHtml(token)}</code>
+                ${copyBtn(token, "Copy")}
+            </div>
+        </div>
+        <div>
+            <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Phone URLs</div>
+            <div style="display:flex;flex-direction:column;gap:6px">${urlsHtml}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">
+            Tip: paste the URL into your phone's browser, then enter the token to sign in.
+            The token is stored at <code>~/.coral/mobile_token</code>.
+        </div>
+    `;
+}
+
+window._copyMobileValue = async function(btn, value) {
+    try {
+        await navigator.clipboard.writeText(value);
+        const prev = btn.textContent;
+        btn.textContent = "Copied";
+        setTimeout(() => { btn.textContent = prev; }, 1200);
+    } catch (_) {
+        showToast("Copy failed", "error");
+    }
+};
+
 // Attach input listeners for flag sync (after DOM is ready)
 document.addEventListener("DOMContentLoaded", () => {
     for (const id of ["launch-flags", "restart-flags", "job-modal-flags", "team-flags"]) {
@@ -1537,6 +1662,8 @@ document.addEventListener("click", (e) => {
     if (e.target === webhookModal) window.hideWebhookModal?.();
     const confirmModal = document.getElementById("confirm-modal");
     if (e.target === confirmModal) window.hideConfirmModal?.();
+    const mobileAccessModal = document.getElementById("mobile-access-modal");
+    if (e.target === mobileAccessModal) hideMobileAccessModal();
 });
 
 // Close modals on Escape
@@ -1550,5 +1677,6 @@ document.addEventListener("keydown", (e) => {
         const mm = document.getElementById("macro-modal");
         if (mm) mm.style.display = "none";
         window.hideWebhookModal?.();
+        hideMobileAccessModal();
     }
 });

@@ -425,8 +425,13 @@ async def get_live_chat(
     session_id: str | None = None,
     working_directory: str | None = None,
     after: int = Query(0, ge=0),
+    limit: int | None = Query(None, ge=1, le=500),
 ):
-    """Get chat messages from the JSONL transcript for a live session."""
+    """Get chat messages from the JSONL transcript for a live session.
+
+    `after` skips N messages from the head (cursor); `limit` caps the tail
+    slice for mobile/phone clients that can't hold the full transcript.
+    """
     if not session_id:
         return {"messages": [], "total": 0}
     agent_type = await store.get_agent_type_for_session(session_id)
@@ -435,7 +440,10 @@ async def get_live_chat(
     new_msgs, total = await asyncio.to_thread(
         jsonl_reader.read_new_messages, transcript_id, working_directory or "", agent_type
     )
-    return {"messages": jsonl_reader._cache[transcript_id].messages[after:], "total": total}
+    messages = jsonl_reader._cache[transcript_id].messages[after:]
+    if limit is not None and len(messages) > limit:
+        messages = messages[-limit:]
+    return {"messages": messages, "total": total}
 
 
 @router.get("/api/sessions/live/{name}/info")

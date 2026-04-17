@@ -104,7 +104,13 @@ class GeminiAgent(BaseAgent):
         else:
             cmd = "gemini"
         if flags:
-            cmd += " " + " ".join(flags)
+            # Filter out Claude-specific flags that Gemini doesn't support.
+            # Gemini uses --yolo for auto-approve mode (added by the user or
+            # the frontend, not hardcoded here like Codex/Qwen).
+            _skip = {"--dangerously-skip-permissions", "--dangerously-bypass-approvals-and-sandbox"}
+            filtered = [f for f in flags if f not in _skip]
+            if filtered:
+                cmd += " " + " ".join(filtered)
         return cmd
 
     def load_history_sessions(self) -> list[dict[str, Any]]:

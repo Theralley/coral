@@ -86,7 +86,7 @@
                             </ul>
                         </div>
                         <label>Agent Type:
-                            <select id="launch-type">
+                            <select id="launch-type" onchange="window._onAgentTypeChange && window._onAgentTypeChange('launch-flags', this.value)">
                                 <option value="claude">Claude</option>
                                 <option value="codex">Codex</option>
                                 <option value="gemini">Gemini</option>
@@ -197,7 +197,7 @@
                             </ul>
                         </div>
                         <label>Default Agent Type <span style="color:var(--text-muted);font-weight:normal">(override per-agent on each card)</span>:
-                            <select id="team-agent-type">
+                            <select id="team-agent-type" onchange="window._onAgentTypeChange && window._onAgentTypeChange('team-flags', this.value)">
                                 <option value="claude">Claude</option>
                                 <option value="codex">Codex</option>
                                 <option value="gemini">Gemini</option>
@@ -537,6 +537,25 @@
         </div>
     </div>
 
+    <!-- Mobile Access Modal -->
+    <div id="mobile-access-modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <h3>Mobile Access</h3>
+            <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px 0">
+                Open <code>/mobile</code> on your phone over the same Wi-Fi and paste the
+                token to sign in.
+            </p>
+            <div id="mobile-access-body" style="display:flex;flex-direction:column;gap:14px">
+                <div class="mobile-access-loading" style="color:var(--text-muted);font-size:13px">
+                    Loading…
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top:16px">
+                <button class="btn" onclick="hideMobileAccessModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Webhooks Modal -->
     <div id="webhook-modal" class="modal" style="display:none">
         <div class="modal-content modal-content-wide">
@@ -620,7 +639,7 @@
                         <input type="text" id="add-agent-board-agent-name" placeholder="e.g. Security Reviewer">
                     </label>
                     <label>Agent Type:
-                        <select id="add-agent-board-type">
+                        <select id="add-agent-board-type" onchange="window._onAgentTypeChange && window._onAgentTypeChange('add-agent-board-flags', this.value)">
                             <option value="claude">Claude</option>
                             <option value="codex">Codex</option>
                             <option value="gemini">Gemini</option>

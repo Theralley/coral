@@ -104,7 +104,10 @@ class QwenAgent(BaseAgent):
             parts.append(f"--append-system-prompt \"$(cat '{tmp}')\"")
 
         if flags:
-            parts.extend(flags)
+            # Filter out Claude-specific flags that Qwen doesn't support.
+            # Qwen already adds --yolo above for auto-approve mode.
+            _skip = {"--dangerously-skip-permissions"}
+            parts.extend(f for f in flags if f not in _skip)
 
         # Pass initial prompt using --prompt-interactive so Qwen stays
         # in interactive mode (positional prompt defaults to one-shot).

@@ -36,8 +36,16 @@ async def submit_task(body: dict):
         return {"error": f"repo_path '{repo_path}' does not exist"}, 400
 
     flags = body.get("flags", "")
+    agent_type = body.get("agent_type", "claude")
     if body.get("auto_accept", False):
-        skip_flag = "--dangerously-skip-permissions"
+        # Use the correct auto-approve flag per agent type.
+        # Codex and Qwen bake in their own flags, so no extra flag needed.
+        if agent_type == "codex":
+            skip_flag = "--dangerously-bypass-approvals-and-sandbox"
+        elif agent_type in ("qwen", "gemini"):
+            skip_flag = "--yolo"
+        else:
+            skip_flag = "--dangerously-skip-permissions"
         if skip_flag not in flags:
             flags = f"{skip_flag} {flags}".strip()
 
