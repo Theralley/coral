@@ -202,12 +202,32 @@ export function hideMacroModal() {
 }
 
 // ── Night Heartbeat ────────────────────────────────────────────────────────
-// Every 30 minutes, send a prompt nudging the agent to keep working (or to
+// Every N minutes, send a prompt nudging the agent to keep working (or to
 // no-op if it's already busy). Useful for overnight runs where you want the
 // agent to resume on its own after a Claude rate-limit window clears.
-const NIGHT_HEARTBEAT_MS = 30 * 60 * 1000;
-const NIGHT_HEARTBEAT_MSG = "This is a night heartbeat. If u dont know what to do, multi model test end to end. If multi model dont exist, test end to end and make sure the night are worth your time. If u see this again after 30min, skip if needed";
+// Interval + prompt text are configurable via Settings → Night Heartbeat.
+// Running timers keep their values until toggled off/on (next-toggle policy).
+// Last-resort fallbacks used before settings load. Authoritative defaults
+// live in src/coral/api/mobile.py (NIGHT_HEARTBEAT_INTERVAL_S / _MSG) and
+// are surfaced via /api/settings/default-prompts. Keep in sync.
+const DEFAULT_NIGHT_HEARTBEAT_MINUTES = 30;
+const DEFAULT_NIGHT_HEARTBEAT_MSG = "This is a night heartbeat. If u dont know what to do, multi model test end to end. If multi model dont exist, test end to end and make sure the night are worth your time. If u see this again after 30min, skip if needed";
 const NIGHT_HEARTBEAT_STORAGE_KEY = "coral.nightHeartbeat.v1";
+
+function _getHeartbeatMinutes() {
+    const raw = parseInt(state.settings?.night_heartbeat_minutes, 10);
+    if (!Number.isFinite(raw) || raw < 1 || raw > 1440) return DEFAULT_NIGHT_HEARTBEAT_MINUTES;
+    return raw;
+}
+
+function _getHeartbeatMs() {
+    return _getHeartbeatMinutes() * 60 * 1000;
+}
+
+function _getHeartbeatMsg() {
+    const custom = (state.settings?.night_heartbeat_prompt || "").trim();
+    return custom || DEFAULT_NIGHT_HEARTBEAT_MSG;
+}
 
 // session_id → intervalId
 const _nightHeartbeatTimers = new Map();
@@ -231,7 +251,7 @@ async function _sendNightHeartbeat(sessionName, agentType, sessionId) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                command: NIGHT_HEARTBEAT_MSG,
+                command: _getHeartbeatMsg(),
                 agent_type: agentType,
                 session_id: sessionId,
             }),
@@ -261,14 +281,15 @@ export function toggleNightHeartbeat() {
         showToast("Night heartbeat OFF");
     } else {
         const name = s.name, agentType = s.agent_type;
+        const minutes = _getHeartbeatMinutes();
         const timer = setInterval(
             () => _sendNightHeartbeat(name, agentType, sid),
-            NIGHT_HEARTBEAT_MS,
+            minutes * 60 * 1000,
         );
         _nightHeartbeatTimers.set(sid, timer);
         ids.add(sid);
         _writeNightHeartbeatIds(ids);
-        showToast("Night heartbeat ON — every 30min");
+        showToast(`Night heartbeat ON — every ${minutes}min`);
     }
     renderQuickActions();
 }
@@ -284,7 +305,7 @@ export function restoreNightHeartbeats(liveSessions) {
         const name = sess.name, agentType = sess.agent_type;
         const timer = setInterval(
             () => _sendNightHeartbeat(name, agentType, sid),
-            NIGHT_HEARTBEAT_MS,
+            _getHeartbeatMs(),
         );
         _nightHeartbeatTimers.set(sid, timer);
     }
@@ -297,10 +318,11 @@ export function renderQuickActions() {
 
     const currentSid = state.currentSession && state.currentSession.session_id;
     const hbOn = isNightHeartbeatOn(currentSid);
+    const hbMinutes = _getHeartbeatMinutes();
     const hbClass = hbOn ? "btn-nav btn-mode btn-night-heartbeat is-on" : "btn-nav btn-mode btn-night-heartbeat";
     const hbTooltip = hbOn
-        ? "Night heartbeat is ON — nudges this agent every 30 minutes. Click to turn off."
-        : "Night heartbeat: sends a keep-working prompt to this agent every 30 minutes. Survives Claude rate-limit pauses (just keeps pinging). Click to turn on.";
+        ? `Night heartbeat is ON — nudges this agent every ${hbMinutes} minutes. Click to turn off.`
+        : `Night heartbeat: sends a keep-working prompt to this agent every ${hbMinutes} minutes. Survives Claude rate-limit pauses (just keeps pinging). Click to turn on. Configure in Settings.`;
 
     const modeButtons = `
         <button class="btn-nav btn-mode" onclick="cycleModeToggle()" data-tooltip="Cycles through Default → Plan → Accept Edits modes (Shift+Tab). Each click advances one step."><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="11" x2="8" y2="11"/></svg><span class="btn-label">Mode</span></button>

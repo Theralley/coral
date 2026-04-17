@@ -407,8 +407,11 @@
 
     <!-- Default Prompts Modal -->
     <div id="default-prompts-modal" class="modal" style="display:none">
-        <div class="modal-content" style="width:600px">
-            <h3>Edit Default Prompts</h3>
+        <div class="modal-content" style="width:600px;max-height:90vh;display:flex;flex-direction:column;padding:0">
+            <div style="padding:20px 24px 12px;border-bottom:1px solid var(--border);flex-shrink:0">
+                <h3 style="margin:0">Edit Default Prompts</h3>
+            </div>
+            <div style="overflow-y:auto;padding:16px 24px;flex:1 1 auto;min-height:0">
             <p style="color:var(--text-secondary);font-size:12px;margin:0 0 12px">
                 Customize the board instructions injected when agents launch. Use <code>{board_name}</code> as a placeholder.
             </p>
@@ -444,7 +447,27 @@
                 </div>
                 <textarea id="settings-team-reminder-worker" class="settings-input" rows="2" style="resize:vertical;font-family:monospace;font-size:12px"></textarea>
             </div>
-            <div class="modal-actions">
+            <hr style="border:none;border-top:1px solid var(--border-color, #333);margin:16px 0">
+            <p style="color:var(--text-secondary);font-size:12px;margin:0 0 12px">
+                Night heartbeat — periodic nudge sent to an agent on a timer (Night button on the toolbar).
+            </p>
+            <div style="margin-bottom:12px">
+                <label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px">Interval</label>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <input type="number" id="settings-night-heartbeat-minutes" class="settings-input" min="1" max="1440" style="width:80px">
+                    <span style="color:var(--text-muted);font-size:12px">minutes</span>
+                </div>
+            </div>
+            <div style="margin-bottom:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <label for="settings-night-heartbeat-prompt" style="font-weight:600;font-size:13px">Prompt</label>
+                    <button class="btn" style="font-size:11px;padding:2px 8px" onclick="resetDefaultPrompt('night_heartbeat')">Reset to Default</button>
+                </div>
+                <textarea id="settings-night-heartbeat-prompt" class="settings-input" rows="4" style="resize:vertical;font-family:monospace;font-size:12px"></textarea>
+                <div style="color:var(--text-muted);font-size:11px;margin-top:4px">Takes effect on next heartbeat toggle (desktop) or next interval (mobile).</div>
+            </div>
+            </div>
+            <div class="modal-actions" style="padding:12px 24px 20px;border-top:1px solid var(--border);flex-shrink:0;margin:0">
                 <button class="btn" onclick="hideDefaultPromptsModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="saveDefaultPrompts()">Save</button>
             </div>

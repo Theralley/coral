@@ -1453,13 +1453,19 @@ async function _ensureDefaultPrompts() {
         const res = await fetch("/api/settings/default-prompts");
         _defaultPrompts = await res.json();
     } catch {
-        // Fallback — should never happen in practice
-        _defaultPrompts = {
-            default_prompt_orchestrator: 'IMPORTANT: You were automatically joined to message board "{board_name}". Do NOT run coral-board join. Post a message with coral-board post "<your introduction>" that introduces yourself, then discuss your proposed plan with the operator (the human user) before posting assignments. Periodically check for new messages.',
-            default_prompt_worker: 'IMPORTANT: You were automatically joined to message board "{board_name}". Do NOT run coral-board join. Do not start any actions until you receive instructions from the Orchestrator on the message board. Post a message with coral-board post "<your introduction>" that introduces yourself, then periodically check for new messages.',
-            team_reminder_orchestrator: 'Remember to coordinate with your team and check the message board for updates',
-            team_reminder_worker: 'Remember to work with your team',
-        };
+        _defaultPrompts = {};
+    }
+    // Backfill any keys the backend didn't return — covers older servers and stale browser caches
+    const fallbacks = {
+        default_prompt_orchestrator: 'IMPORTANT: You were automatically joined to message board "{board_name}". Do NOT run coral-board join. Post a message with coral-board post "<your introduction>" that introduces yourself, then discuss your proposed plan with the operator (the human user) before posting assignments. Periodically check for new messages.',
+        default_prompt_worker: 'IMPORTANT: You were automatically joined to message board "{board_name}". Do NOT run coral-board join. Do not start any actions until you receive instructions from the Orchestrator on the message board. Post a message with coral-board post "<your introduction>" that introduces yourself, then periodically check for new messages.',
+        team_reminder_orchestrator: 'Remember to coordinate with your team and check the message board for updates',
+        team_reminder_worker: 'Remember to work with your team',
+        default_night_heartbeat_msg: 'This is a night heartbeat. If u dont know what to do, multi model test end to end. If multi model dont exist, test end to end and make sure the night are worth your time. If u see this again after 30min, skip if needed',
+        default_night_heartbeat_minutes: 30,
+    };
+    for (const [k, v] of Object.entries(fallbacks)) {
+        if (!_defaultPrompts[k]) _defaultPrompts[k] = v;
     }
     return _defaultPrompts;
 }
@@ -1475,6 +1481,17 @@ export async function showDefaultPromptsModal() {
     const teamWorkerEl = document.getElementById("settings-team-reminder-worker");
     if (teamOrchEl) teamOrchEl.value = s.team_reminder_orchestrator || defaults.team_reminder_orchestrator;
     if (teamWorkerEl) teamWorkerEl.value = s.team_reminder_worker || defaults.team_reminder_worker;
+    const nightMinEl = document.getElementById("settings-night-heartbeat-minutes");
+    if (nightMinEl) {
+        const stored = parseInt(s.night_heartbeat_minutes, 10);
+        nightMinEl.value = Number.isFinite(stored) && stored >= 1
+            ? stored
+            : (defaults.default_night_heartbeat_minutes || 30);
+    }
+    const nightPromptEl = document.getElementById("settings-night-heartbeat-prompt");
+    if (nightPromptEl) {
+        nightPromptEl.value = s.night_heartbeat_prompt || defaults.default_night_heartbeat_msg || "";
+    }
     document.getElementById("default-prompts-modal").style.display = "flex";
 }
 
@@ -1489,6 +1506,7 @@ export async function resetDefaultPrompt(type) {
         worker: ["settings-prompt-worker", "default_prompt_worker"],
         team_orchestrator: ["settings-team-reminder-orchestrator", "team_reminder_orchestrator"],
         team_worker: ["settings-team-reminder-worker", "team_reminder_worker"],
+        night_heartbeat: ["settings-night-heartbeat-prompt", "default_night_heartbeat_msg"],
     };
     const entry = mapping[type];
     if (entry) {
@@ -1504,12 +1522,24 @@ export async function saveDefaultPrompts() {
     const teamOrchValue = document.getElementById("settings-team-reminder-orchestrator")?.value || "";
     const teamWorkerValue = document.getElementById("settings-team-reminder-worker")?.value || "";
 
+    // Night heartbeat — clamp minutes to [1, 1440] with default fallback.
+    const rawMinutes = parseInt(document.getElementById("settings-night-heartbeat-minutes")?.value, 10);
+    const defaultMinutes = defaults.default_night_heartbeat_minutes || 30;
+    let nightMinutes = Number.isFinite(rawMinutes) ? rawMinutes : defaultMinutes;
+    if (nightMinutes < 1) nightMinutes = 1;
+    if (nightMinutes > 1440) nightMinutes = 1440;
+    const nightMinutesStr = nightMinutes === defaultMinutes ? "" : String(nightMinutes);
+    const rawPrompt = (document.getElementById("settings-night-heartbeat-prompt")?.value ?? "").trim();
+    const nightPrompt = rawPrompt === (defaults.default_night_heartbeat_msg || "") ? "" : rawPrompt;
+
     // Save empty string when value matches default — so future default updates are picked up
     const payload = {
         default_prompt_orchestrator: orchValue === defaults.default_prompt_orchestrator ? "" : orchValue,
         default_prompt_worker: workerValue === defaults.default_prompt_worker ? "" : workerValue,
         team_reminder_orchestrator: teamOrchValue === defaults.team_reminder_orchestrator ? "" : teamOrchValue,
         team_reminder_worker: teamWorkerValue === defaults.team_reminder_worker ? "" : teamWorkerValue,
+        night_heartbeat_minutes: nightMinutesStr,
+        night_heartbeat_prompt: nightPrompt,
     };
 
     try {

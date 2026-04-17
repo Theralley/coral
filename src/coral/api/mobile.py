@@ -412,19 +412,53 @@ async def send_to_session(session_id: str, body: SendRequest):
 
 # ── Server-side night-heartbeat ──────────────────────────────────────────
 
+async def _resolve_heartbeat_config() -> tuple[int, str]:
+    """Read night-heartbeat interval + prompt from user settings, with defensive fallback.
+
+    Empty / whitespace-only / out-of-range values fall back to module defaults so a bad
+    stored value can never turn the loop into a tight CPU burner or send an empty prompt.
+    """
+    interval_s = NIGHT_HEARTBEAT_INTERVAL_S
+    msg = NIGHT_HEARTBEAT_MSG
+    if store is None:
+        return interval_s, msg
+    try:
+        settings = await store.get_settings()
+    except Exception:
+        return interval_s, msg
+    raw_min = (settings.get("night_heartbeat_minutes") or "").strip()
+    if raw_min:
+        try:
+            minutes = int(raw_min)
+            if 1 <= minutes <= 1440:
+                interval_s = minutes * 60
+        except ValueError:
+            pass
+    raw_msg = (settings.get("night_heartbeat_prompt") or "").strip()
+    if raw_msg:
+        msg = raw_msg
+    return interval_s, msg
+
+
 async def _heartbeat_loop(session_id: str) -> None:
-    """Send the night-heartbeat message every 30 minutes until cancelled."""
+    """Send the night-heartbeat message on an interval until cancelled.
+
+    Interval + prompt text are re-read from user settings at the top of each cycle, so
+    edits made through the Settings modal take effect after the current sleep completes
+    (no restart needed).
+    """
     import asyncio
     while True:
         try:
-            await asyncio.sleep(NIGHT_HEARTBEAT_INTERVAL_S)
+            interval_s, msg = await _resolve_heartbeat_config()
+            await asyncio.sleep(interval_s)
             agents = await discover_coral_agents()
             match = next((a for a in agents if a.get("session_id") == session_id), None)
             if not match:
                 log.info("Night heartbeat: session %s gone, stopping", session_id[:8])
                 break
             err = await send_to_tmux(
-                match["agent_name"], NIGHT_HEARTBEAT_MSG,
+                match["agent_name"], msg,
                 agent_type=match["agent_type"], session_id=session_id,
             )
             if err:

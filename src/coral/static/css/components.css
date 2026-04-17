@@ -510,6 +510,8 @@
     padding: 24px;
     width: 400px;
     max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-content-wide {
