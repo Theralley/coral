@@ -1603,16 +1603,23 @@ function _renderMobileAccess(container, data) {
     const token = data.token || "";
     const port = data.port || 8420;
     const ips = Array.isArray(data.lan_ips) ? data.lan_ips : [];
+    const lanEnabled = data.lan_enabled === true;
 
     const copyBtn = (value, label) =>
         `<button class="btn btn-small" onclick="_copyMobileValue(this, ${JSON.stringify(value).replace(/"/g, '&quot;')})">${label}</button>`;
 
     let urlsHtml = "";
-    if (ips.length === 0) {
+    if (!lanEnabled) {
         urlsHtml = `<div style="color:var(--text-muted);font-size:13px">
-            No LAN IPs detected. If the dashboard started with <code>--host 127.0.0.1</code>,
-            restart with <code>coral --host 0.0.0.0</code> to expose <code>/mobile</code> on
-            your Wi-Fi.
+            Mobile mode is off. The dashboard is bound to loopback —
+            restart with <code>coral --mobile</code> (or
+            <code>CORAL_MOBILE=1 launch-coral …</code>) to expose <code>/mobile</code>
+            on your Wi-Fi.
+        </div>`;
+    } else if (ips.length === 0) {
+        urlsHtml = `<div style="color:var(--text-muted);font-size:13px">
+            Mobile mode is on, but no LAN IPs were detected. Check that this
+            machine is connected to Wi-Fi or ethernet, then reopen this dialog.
         </div>`;
     } else {
         urlsHtml = ips.map(ip => {

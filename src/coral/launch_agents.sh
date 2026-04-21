@@ -20,15 +20,24 @@ PROTOCOL_PATH="${SCRIPT_DIR}/PROTOCOL.md"
 WEB_SERVER_PATH="${SCRIPT_DIR}/web_server.py"
 WEB_SESSION="coral-web-server"
 WEB_PORT="${CORAL_PORT:-8420}"
-WEB_HOST="${CORAL_HOST:-127.0.0.1}"
+# If CORAL_MOBILE=1 and no explicit host, bind 0.0.0.0 so phones on the LAN
+# can reach /mobile. The HostAllowMiddleware still gates the dashboard.
+CORAL_MOBILE="${CORAL_MOBILE:-0}"
+if [ -z "${CORAL_HOST:-}" ] && [ "$CORAL_MOBILE" = "1" ]; then
+    WEB_HOST="0.0.0.0"
+else
+    WEB_HOST="${CORAL_HOST:-127.0.0.1}"
+fi
 
 # Launch the web server in a dedicated tmux session
 launch_web_server() {
-    local cmd="python3 $WEB_SERVER_PATH --host $WEB_HOST --port $WEB_PORT"
+    local mobile_flag=""
+    [ "$CORAL_MOBILE" = "1" ] && mobile_flag=" --mobile"
+    local cmd="python3 $WEB_SERVER_PATH --host $WEB_HOST --port $WEB_PORT$mobile_flag"
 
     # Prefer the installed entry point
     if command -v coral &>/dev/null; then
-        cmd="coral --no-browser --host $WEB_HOST --port $WEB_PORT"
+        cmd="coral --no-browser --host $WEB_HOST --port $WEB_PORT$mobile_flag"
     elif [ ! -f "$WEB_SERVER_PATH" ]; then
         echo "  [!] Web server skip: web_server.py not found and coral not in PATH."
         return 1

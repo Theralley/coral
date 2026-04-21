@@ -515,8 +515,6 @@ async def post_board_message(project: str, body: PostBoardRequest):
 
 # ── Token management ─────────────────────────────────────────────────────
 
-_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
-
 
 @router.get("/info")
 async def mobile_info(request: Request):
@@ -526,14 +524,27 @@ async def mobile_info(request: Request):
     other /api/mobile endpoint, so this one is the only path that can leak
     the token — restrict it to the same host the dashboard runs on.
     """
-    client_host = request.client.host if request.client else ""
-    if client_host not in _LOOPBACK_HOSTS:
+    from coral.mobile_gate import is_loopback_client
+    client_host = request.client.host if request.client else None
+    if not is_loopback_client(client_host):
         raise HTTPException(status_code=403, detail="Mobile info is localhost-only")
     port = request.url.port or (443 if request.url.scheme == "https" else 80)
+    # Whether the server is actually bound to a non-loopback interface.
+    # Set in web_server.main() after host resolution; fall back to env-sniff
+    # if app.state wasn't populated (e.g. when the app is embedded in tests).
+    lan_enabled = getattr(request.app.state, "lan_enabled", None)
+    if lan_enabled is None:
+        coral_host = os.environ.get("CORAL_HOST", "")
+        mobile_env = os.environ.get("CORAL_MOBILE", "")
+        lan_enabled = (
+            mobile_env not in ("", "0", "false", "False")
+            or (coral_host and coral_host not in ("127.0.0.1", "localhost", "::1"))
+        )
     return {
         "token": get_or_create_token(),
         "lan_ips": enumerate_lan_ips(),
         "port": port,
+        "lan_enabled": bool(lan_enabled),
     }
 
 

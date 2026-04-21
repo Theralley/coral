@@ -23,6 +23,7 @@ from starlette.requests import Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from coral.store import CoralStore
+from coral.mobile_gate import HostAllowMiddleware
 from coral.tools.jsonl_reader import JsonlSessionReader
 
 # Import routers
@@ -234,6 +235,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Coral Dashboard", lifespan=lifespan)
 
+# Host-allow gate: non-loopback clients may only reach /mobile and /api/mobile/*.
+# Installed unconditionally so that binding non-loopback (with or without the
+# --mobile flag) can never expose the unauthenticated dashboard to the LAN.
+# Loopback clients pass through unaffected.
+app.add_middleware(HostAllowMiddleware)
+
 # CORS: allow same-origin by default (browser enforces this).
 # Explicitly allow localhost origins for cross-tab/port scenarios.
 # This blocks cross-site attacks from arbitrary external origins.
@@ -372,17 +379,53 @@ def main():
         sys.exit(1)
 
     parser = argparse.ArgumentParser(description="Coral Dashboard")
-    parser.add_argument("--host", default=os.environ.get("CORAL_HOST", "127.0.0.1"), help="Host to bind to (default: 127.0.0.1, env: CORAL_HOST)")
+    parser.add_argument("--host", default=os.environ.get("CORAL_HOST"), help="Host to bind to (default: 127.0.0.1, or 0.0.0.0 when --mobile. env: CORAL_HOST)")
     parser.add_argument("--port", type=int, default=8420, help="Port to bind to (default: 8420)")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
     parser.add_argument("--no-browser", action="store_true", help="Don't open the browser on startup")
+    parser.add_argument("--mobile", action="store_true",
+        default=os.environ.get("CORAL_MOBILE", "") not in ("", "0", "false", "False"),
+        help="Expose /mobile on the LAN. Binds 0.0.0.0 and gates non-loopback clients to the mobile allowlist. env: CORAL_MOBILE=1")
     parser.add_argument("--data-dir", type=str, default=None,
         help="Directory for Coral data (databases, uploads, themes). Default: ~/.coral. Env: CORAL_DATA_DIR")
     args = parser.parse_args()
 
+    # Resolve bind host: explicit --host / CORAL_HOST wins; otherwise 0.0.0.0
+    # in mobile mode, 127.0.0.1 without.
+    if args.host is None:
+        args.host = "0.0.0.0" if args.mobile else "127.0.0.1"
+
+    # Stash the resolved bind on the app so request handlers (e.g.
+    # /api/mobile/info) can report whether the server is actually reachable
+    # from the LAN — more accurate than sniffing env vars.
+    lan_enabled = args.host not in ("127.0.0.1", "localhost", "::1")
+    app.state.bind_host = args.host
+    app.state.lan_enabled = lan_enabled
+
+    # Propagate the mobile flag into the env so subprocess/request handlers
+    # (e.g. /api/mobile/info) can see it reliably, even if the CLI flag was
+    # used instead of the env var.
+    if args.mobile:
+        os.environ["CORAL_MOBILE"] = "1"
+
     # Set data dir env var before any store/DB initialization
     if args.data_dir:
         os.environ["CORAL_DATA_DIR"] = str(Path(args.data_dir).expanduser().resolve())
+
+    # Pre-probe the bind so the LAN banner doesn't lie if the port is taken.
+    import socket as _socket
+    bind_ok = True
+    bind_err = None
+    probe_family = _socket.AF_INET6 if ":" in args.host else _socket.AF_INET
+    probe = _socket.socket(probe_family, _socket.SOCK_STREAM)
+    probe.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
+    try:
+        probe.bind((args.host, args.port))
+    except OSError as e:
+        bind_ok = False
+        bind_err = str(e)
+    finally:
+        probe.close()
 
     # Print LAN URLs and mobile token so the user can open /mobile from a phone.
     # LAN access requires binding to a non-loopback host (e.g. 0.0.0.0 or the LAN IP).
@@ -393,13 +436,23 @@ def main():
         is_loopback = host in ("127.0.0.1", "localhost", "::1")
         lan_ips = enumerate_lan_ips()
 
-        if is_loopback:
+        if not bind_ok:
+            print(
+                f"\n  ⚠ Cannot bind {host}:{args.port} — {bind_err}",
+                file=sys.stderr,
+            )
+            print(
+                "  Uvicorn will retry and report the real error below.",
+                file=sys.stderr,
+            )
+            print("", file=sys.stderr)
+        elif is_loopback:
             print(
                 f"\n  Mobile /mobile is localhost-only on {host}:{args.port}.",
                 file=sys.stderr,
             )
             print(
-                "  For phone/LAN access, restart with:  coral --host 0.0.0.0",
+                "  For phone/LAN access, restart with:  coral --mobile",
                 file=sys.stderr,
             )
             print("", file=sys.stderr)
@@ -411,9 +464,18 @@ def main():
                 for ip in shown_ips:
                     print(f"  http://{ip}:{args.port}/mobile", file=sys.stderr)
                 print(
-                    "  ⚠ Dashboard at / is unauthenticated — only expose on trusted LANs.",
+                    "  ⚠ HTTP traffic is plaintext — only use on trusted Wi-Fi.",
                     file=sys.stderr,
                 )
+                print(
+                    "  ⚠ Dashboard at / stays loopback-only; only /mobile is reachable from the LAN.",
+                    file=sys.stderr,
+                )
+                if sys.platform == "darwin":
+                    print(
+                        "  Note: macOS may prompt to allow incoming connections on first launch.",
+                        file=sys.stderr,
+                    )
                 print("", file=sys.stderr)
     except Exception:
         pass
